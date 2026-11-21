@@ -113,7 +113,7 @@ def test_ground_ball_mania_rolls_stay_within_ten_yards_of_the_coach(page):
 
 
 def test_ground_ball_mania_nobody_collides(page):
-    """Kids keep clear of each other, the coach, the cone and the bag, and a rolled ball never
+    """Kids keep clear of each other, the coach and the bag (the cone is only a marker, so players may run through it), and a rolled ball never
     passes close to a kid other than the one it is rolled for."""
     drill = page.evaluate("LAX.DRILLS.find((d) => d.id === 'ground-ball-mania')")
     actors = {a["id"]: a["keys"] for a in drill["actors"]}
@@ -133,7 +133,6 @@ def test_ground_ball_mania_nobody_collides(page):
             for b in kids[i + 1 :]:
                 assert dist(pos[a], pos[b]) >= 3.2, (t, a, b)
             assert dist(pos[a], at("coach", t)) >= 3.2, (t, a, "coach")
-            assert dist(pos[a], at("cone", t)) >= 2.4, (t, a, "cone")
             assert dist(pos[a], at("bag", t)) >= 2.7, (t, a, "bag")
 
 
