@@ -1,4 +1,4 @@
-import { SPEEDS, THEMES } from "./constants.js";
+import { SPEEDS, THEME_KEY, THEMES } from "./constants.js";
 import { DRILLS } from "./drills.js";
 import { createEngine } from "./engine.js";
 import { buildActors, buildField, placeActors } from "./render.js";
@@ -37,6 +37,20 @@ export function loadDrill(index) {
 
 export function setTheme(id) {
   document.documentElement.setAttribute("data-theme", id);
+  try {
+    localStorage.setItem(THEME_KEY, id);
+  } catch {
+    // Storage can be blocked (private window, cleared site data); the theme still applies.
+  }
+}
+
+function savedTheme() {
+  try {
+    const id = localStorage.getItem(THEME_KEY);
+    return THEMES.some((t) => t.id === id) ? id : null;
+  } catch {
+    return null;
+  }
 }
 
 function fillSelect(select, items, selected) {
@@ -53,6 +67,9 @@ export function initUi() {
   const svg = $("field");
   if (!svg) return false;
   app.layer = buildField(svg);
+
+  const saved = savedTheme();
+  if (saved) setTheme(saved);
 
   fillSelect(
     $("drill"),

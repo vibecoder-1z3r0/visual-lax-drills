@@ -31,9 +31,22 @@ def test_drill_selector_switches_drills(page):
     assert page.locator("#field g.cone-orange").count() == 1
 
 
-def test_theme_changes_the_page(page):
-    before = page.evaluate("getComputedStyle(document.body).backgroundColor")
-    page.select_option("#theme", "night")
-    assert page.evaluate("document.documentElement.dataset.theme") == "night"
-    after = page.evaluate("getComputedStyle(document.body).backgroundColor")
-    assert before != after
+def test_every_theme_restyles_the_page(page):
+    options = page.locator("#theme option").evaluate_all("els => els.map(e => e.value)")
+    assert options == ["day", "night", "stadium", "field"]
+    seen = {page.evaluate("getComputedStyle(document.body).backgroundColor")}
+    for theme in options[1:]:
+        page.select_option("#theme", theme)
+        assert page.evaluate("document.documentElement.dataset.theme") == theme
+        seen.add(page.evaluate("getComputedStyle(document.body).backgroundColor"))
+        grass = page.evaluate("getComputedStyle(document.querySelector('.field-grass-a')).fill")
+        assert grass.startswith("rgb"), theme
+    assert len(seen) == len(options)
+
+
+def test_theme_is_remembered_after_a_reload(page):
+    page.select_option("#theme", "field")
+    page.reload()
+    page.wait_for_function("window.LAX !== undefined")
+    assert page.evaluate("document.documentElement.dataset.theme") == "field"
+    assert page.locator("#theme").input_value() == "field"

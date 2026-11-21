@@ -24,6 +24,11 @@ export const DRAW_ORDER = ["ballbag", "cone", "coach", "player", "goalie", "ball
 export const THEMES = [
   { id: "day", name: "Day" },
   { id: "night", name: "Night" },
+  { id: "stadium", name: "Stadium" },
+  { id: "field", name: "Field" },
 ];
+
+// Where the chosen theme is remembered between visits.
+export const THEME_KEY = "vldTheme";
 
 export const SPEEDS = [0.25, 0.5, 1, 1.5, 2];
