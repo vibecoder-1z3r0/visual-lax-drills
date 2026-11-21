@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Choreographs the keep-away drill and writes src/js/keepaway_data.js.
+"""Choreographs the keep-away and the odd man, offense/defense drills.
 
-    python3 scripts/keepaway_choreography.py          # rewrite the data module
-    python3 scripts/keepaway_choreography.py --check  # exit 1 if the committed file is out of date
+It writes src/js/keepaway_data.js and src/js/oddman_data.js.
+
+    python3 scripts/choreography.py          # rewrite the data module
+    python3 scripts/choreography.py --check  # exit 1 if the committed file is out of date
 
 Keep-away is not scripted by hand: it is played out by a small simulation, one step a second.
 The team with the ball spreads out and moves to get open, passes to whoever is open with a clear
@@ -33,6 +35,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "src" / "js" / "keepaway_data.js"
+OUT_ODD = ROOT / "src" / "js" / "oddman_data.js"
+TAKES_DIR = ROOT / "src" / "takes"
 
 # ---- the field and the people --------------------------------------------------------------
 WEST, EAST, NORTH, SOUTH = 15.0, 45.0, 5.0, 55.0
@@ -51,7 +55,14 @@ POCKET = (0.375 * ICON, -0.25 * ICON)  # where the stick's pocket is, from the p
 QUEUE_X = 14.0  # the lines wait just outside the sideline (x = 15); players run in from there
 SLOT = 2.5  # spacing of players waiting in line
 FIRST = 2.8  # the front player's distance from the cone
-ZONE = (17.8, 43.2, 24.0, 48.0)  # x0, x1, y0, y1: where the play happens
+KEEP_ZONE = (17.8, 43.2, 24.0, 48.0)  # x0, x1, y0, y1: where keep-away happens
+ODD_ZONE = (17.8, 43.2, 18.0, 48.0)  # odd man, offense/defense reaches toward the goal
+ZONE = KEEP_ZONE
+KEEP_OUT = False  # True: players stay out of the crease
+GOAL = (30.0, 15.0)
+GOAL_KEEP = 4.2  # players stay this far from the middle of the goal
+SHOT_MIN, SHOT_MAX = 5.0, 11.5  # a player shoots from this far from the goal
+GOALIE_HOME = 1.9  # the goalie stands this far from the middle of the goal, toward the ball
 CENTRE = (30.5, 36.5)
 
 DT = 1.0  # one simulation step
@@ -85,11 +96,20 @@ def lerp(a, b, u):
     return (a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u)
 
 
+def use_zone(zone, keep_out):
+    global ZONE, KEEP_OUT
+    ZONE, KEEP_OUT = zone, keep_out
+
+
 def clamp_zone(p, margin=0.0):
-    return (
+    c = (
         min(max(p[0], ZONE[0] + margin), ZONE[1] - margin),
         min(max(p[1], ZONE[2] + margin), ZONE[3] - margin),
     )
+    if KEEP_OUT and dist(c, GOAL) < GOAL_KEEP + margin:
+        away = unit(sub(c, GOAL)) if dist(c, GOAL) > 1e-6 else (0.0, 1.0)
+        c = add(GOAL, away, GOAL_KEEP + margin)
+    return c
 
 
 def seg_dist(p, a, b):
@@ -141,6 +161,8 @@ class Round:
 
     def __init__(self, spec):
         self.spec = spec
+        self.offense = spec.get("mode") == "offense"
+        use_zone(ODD_ZONE if self.offense else KEEP_ZONE, self.offense)
         self.rng = random.Random(spec["seed"])
         self.players = {}
         for i in range(5):
@@ -154,6 +176,18 @@ class Round:
         self.t = 0.0
         self.hold = 0
         self.pass_times = []
+        self.g_pos = (GOAL[0], GOAL[1] + GOALIE_HOME)  # the goalie (odd man, offense/defense)
+        self.g_keys = [(0.0, self.g_pos[0], self.g_pos[1])]
+        self.g_next = self.g_pos
+        self.g_dive: list[tuple] = []
+        self.shot_i = 0
+        self.shot_ready = spec.get("shot_after", 6.0)
+        self.finished = False
+        self.loose_spot = None
+        self.reset_t = 0.0
+        self.reset_targets: dict[str, tuple[float, float]] = {}
+        self.reset_in: set[str] = set()
+        self.nb_release = False
         self.nb_phase = None  # new ball: None, 'out' (play stopped), 'rolling', 'done'
         self.nb_roll_t = 0.0
         self.nb_land = 0.0
@@ -242,7 +276,15 @@ class Round:
         )
         self.caption(2.3, "They fight for the ground ball.")
         color = "Red" if win == "S" else "Blue"
-        self.caption(2.9, f"{color} scoops it. Keep-away starts: {self.odds_text()}.")
+        if self.offense:
+            extra = (
+                " Blue is the team a player down, and now it is on offense: no take back."
+                if win == "N"
+                else " Whoever has the ball is on offense now, and shoots when there is a shot."
+            )
+            self.caption(2.9, f"{color} scoops it. {self.odds_text()}.{extra}")
+        else:
+            self.caption(2.9, f"{color} scoops it. Keep-away starts: {self.odds_text()}.")
 
     def odds_text(self):
         s, n = len(self.playing("a")), len(self.playing("b"))
@@ -274,12 +316,22 @@ class Round:
                     if dist(nxt[pid], ahead) < SLOT - 0.15:
                         nxt[pid] = p.pos
 
-        if loose and self.nb_phase == "out":
-            if t + 1e-9 >= self.nb_roll_t:
-                self.roll_new_ball(t)
-        if loose and self.nb_phase == "out":
+        if self.nb_phase == "reset" and t + 1e-9 >= self.reset_t:
+            self.start_reset()
+        if loose and self.nb_phase == "out" and t + 1e-9 >= self.nb_roll_t:
+            self.roll_new_ball(t)
+        if loose and self.nb_phase in ("out", "reset"):
             for p in in_play:  # play is stopped while the coach gets a new ball
                 nxt[p.id] = p.pos
+        elif self.nb_phase == "resetting":
+            for p in in_play:  # everyone walks back to the end of their line
+                goal = self.reset_targets[p.id]
+                # come in from the field side so nobody has to cut through the line
+                if p.id not in self.reset_in and dist(p.pos, (17.5, goal[1])) < 0.6:
+                    self.reset_in.add(p.id)
+                if p.id not in self.reset_in:
+                    goal = (17.5, goal[1])
+                nxt[p.id] = self.steer(p, goal, V_RUN * 0.8)
         elif loose:
             self.chase_loose(t, nxt)
         else:
@@ -313,9 +365,38 @@ class Round:
             p = self.players[pid]
             p.pos = pos
             self.key(p, t + DT)
+        self.move_goalie(t)
+        if self.nb_phase == "resetting" and all(
+            dist(self.players[pid].pos, goal) < 0.3 for pid, goal in self.reset_targets.items()
+        ):
+            self.finish_reset()
         self.c_cur = self.c_nxt
         self.t = t + DT
         self.finish_step(ball_keys)
+
+    def move_goalie(self, t):
+        if self.g_dive:  # a dive for a shot: the keys were worked out with the shot
+            self.g_keys += self.g_dive
+            self.g_pos = (self.g_dive[-1][1], self.g_dive[-1][2])
+            self.g_dive = []
+            return
+        target = self.goalie_target()
+        gap = dist(self.g_pos, target)
+        step = min(gap, 4.2 * DT)
+        if gap > 1e-9:
+            self.g_pos = add(self.g_pos, unit(sub(target, self.g_pos)), step)
+        self.g_keys.append((t + DT, self.g_pos[0], self.g_pos[1]))
+
+    def finish_reset(self):
+        for team in ("a", "b"):
+            for p in sorted(
+                (q for q in self.playing(team)),
+                key=lambda q: dist(self.reset_targets[q.id], slot_pos(team, 0)),
+            ):
+                p.playing = False
+                self.queues[team].append(p.id)
+        self.finished = True
+        self.nb_phase = "done"
 
     def move_coach(self, in_play):
         """The coach in the field steps out of the players' way, then drifts back out of bounds."""
@@ -369,6 +450,8 @@ class Round:
                 away[1] + 0.45 * to_centre[1] + 0.3 * p.heading[1],
             )
         )
+        if self.offense and dist(p.pos, GOAL) > SHOT_MAX - 1.5:
+            v = unit(add(v, unit(sub(GOAL, p.pos)), 1.1))  # drive at the goal
         angle = self.rng.uniform(-0.5, 0.5)
         v = (
             v[0] * math.cos(angle) - v[1] * math.sin(angle),
@@ -402,6 +485,8 @@ class Round:
             edge = min(c[0] - ZONE[0], ZONE[1] - c[0], c[1] - ZONE[2], ZONE[3] - c[1])
             score -= 1.5 * max(0.0, 2.0 - edge)
             score -= 1.2 * max(0.0, 3.0 - dist(c, self.c_nxt))
+            if self.offense:  # get open near the goal, but never in the crease
+                score -= 0.3 * max(0.0, dist(c, GOAL) - 9.0)
             score += self.rng.uniform(0.0, 0.6)
             if score > best_score:
                 best, best_score = c, score
@@ -425,6 +510,8 @@ class Round:
         if mates:
             deny = unit(sub(nxt.get(mates[0].id, mates[0].pos), c_next))
         side = unit(add(unit(sub(near.pos, c_next)), deny, 0.35))
+        if self.offense:  # stay between the ball and the goal
+            side = unit(add(unit(sub(GOAL, c_next)), side, 0.5))
         nxt[near.id] = self.steer(near, add(c_next, side, 1.5), V_RUN)
         rest = [d for d in defence if d is not near]
         k = min(len(rest), len(mates))
@@ -433,7 +520,10 @@ class Round:
         for m in marks:
             m_next = nxt.get(m.id, m.pos)
             d_m = dist(m_next, c_next)
-            spots.append(add(m_next, unit(sub(c_next, m_next)), min(max(0.35 * d_m, 2.2), 3.6)))
+            if self.offense:  # goal side of the player they cover
+                spots.append(add(m_next, unit(sub(GOAL, m_next)), 2.2))
+            else:
+                spots.append(add(m_next, unit(sub(c_next, m_next)), min(max(0.35 * d_m, 2.2), 3.6)))
         assigned: dict[str, tuple[float, float]] = {}
         if k:
             best = min(
@@ -453,6 +543,9 @@ class Round:
                 v[0] * math.cos(ang) - v[1] * math.sin(ang),
                 v[0] * math.sin(ang) + v[1] * math.cos(ang),
             )
+            if self.offense:
+                v = add(unit(sub(GOAL, c_next)), v, 0.8)
+                v = unit(v)
             assigned[d.id] = clamp_zone(add(c_next, v, 3.6))
         for d in rest:
             nxt[d.id] = self.steer(d, assigned[d.id], V_RUN)
@@ -466,6 +559,88 @@ class Round:
             if i == 0 and self.nb_phase == "rolling":  # the closest player scoops it up
                 target = (spot[0] - POCKET[0], spot[1] - POCKET[1])
             nxt[p.id] = self.steer(p, clamp_zone(target), V_RUN)
+
+    def goalie_target(self):
+        """The goalie steps out along the line from the goal to the ball."""
+        if self.carrier is not None:
+            ball = pocket_of(self.carrier.pos)
+        elif self.loose_spot is not None:
+            ball = self.loose_spot
+        else:
+            ball = (GOAL[0], GOAL[1] + 8.0)
+        v = unit(sub(ball, GOAL))
+        v = (v[0], max(v[1], 0.55))
+        return add(GOAL, unit(v), GOALIE_HOME)
+
+    def try_shot(self, t, carrier, defence):
+        """A player with a shot on net takes it. The round says how it ends."""
+        shots = self.spec.get("shots", [])
+        if self.shot_i >= len(shots) or t < self.shot_ready:
+            return None
+        d = dist(carrier.pos, GOAL)
+        if not SHOT_MIN <= d <= SHOT_MAX:
+            return None
+        outcome, after = shots[self.shot_i]
+        start = pocket_of(carrier.pos)
+        side = 1 if carrier.pos[0] >= GOAL[0] else -1  # the side the shooter is on
+        if outcome == "goal":
+            aim = (GOAL[0] - side * 0.8, GOAL[1] - 0.7)  # far corner, into the net
+        elif outcome == "save":
+            aim = add(self.g_pos, (side * 0.3, -0.2), 1.0)
+        else:  # wide: the ball skips past the post and rolls behind the net
+            aim = (GOAL[0] + side * 7.0, 7.8)
+        lane = min((seg_dist(q.pos, start, aim) for q in defence), default=9.0)
+        if lane < 1.0:
+            return None
+        tau = max(0.4, dist(start, aim) / 22.0)
+        self.shot_i += 1
+        self.last_passer = carrier
+        self.carrier = None
+        who = "Red" if carrier.team == "a" else "Blue"
+        keys = []
+        if outcome == "goal":
+            rest = (aim[0], aim[1] - 0.5)
+            keys = [(t + tau, aim[0], aim[1], 0), (t + tau + 0.3, rest[0], rest[1], 1)]
+            dive = add(GOAL, (side * 1.5, GOALIE_HOME - 0.2))
+            self.caption(t, f"{who} has a shot and takes it: goal! The goalie went the other way.")
+        elif outcome == "save":
+            rest = (self.g_pos[0] + side * 0.4, self.g_pos[1] + 1.0)
+            keys = [(t + tau, aim[0], aim[1], 0), (t + tau + 0.4, rest[0], rest[1], 1)]
+            dive = add(GOAL, (side * 0.9, GOALIE_HOME))
+            self.caption(t, f"{who} has a shot and takes it: the goalie makes the save.")
+        else:
+            rest = (aim[0] + side * 0.6, aim[1] - 0.4)
+            keys = [(t + tau, aim[0], aim[1], 1), (t + tau + 0.5, rest[0], rest[1], 1)]
+            dive = add(GOAL, (side * 0.8, GOALIE_HOME))
+            self.caption(t, f"{who} has a shot and takes it, but it goes wide and rolls behind.")
+        self.g_dive = [(t + tau, dive[0], dive[1]), (t + DT, dive[0], dive[1])]
+        end = keys[-1][0]
+        self.stop_play(t, end, rest, after)
+        return keys
+
+    def stop_play(self, t, end, rest, after):
+        """After a shot play stops: a new ball, a new ball and a release, or a reset."""
+        self.nb_out = rest
+        if after == "reset":
+            self.nb_phase = "reset"
+            self.reset_t = end + 1.6
+            self.say(self.reset_t, 1.6, "coach", "Reset!")
+            self.caption(
+                self.reset_t, 'The coach calls "Reset!" and everyone goes back to the lines.'
+            )
+        else:
+            self.nb_phase = "out"
+            self.nb_roll_t = end + 2.0
+            self.nb_release = after == "new_ball_release"
+
+    def start_reset(self):
+        """Everyone playing walks back to the end of their line."""
+        for team in ("a", "b"):
+            back = [p for p in self.playing(team)]
+            back.sort(key=lambda q: q.pos[1], reverse=(team == "b"))
+            for k, p in enumerate(back):
+                self.reset_targets[p.id] = slot_pos(team, len(self.queues[team]) + k)
+        self.nb_phase = "resetting"
 
     def send_out_of_bounds(self, t, carrier, defence):
         """A pass sails out of bounds on the east side, near the coach in the field."""
@@ -508,18 +683,32 @@ class Round:
             (self.nb_land, best[0], best[1], 1),
         ]
         self.say(t, 1.6, "coach2", "New ball!")
-        self.caption(
-            t, 'A coach in the field throws in a new ball: "New ball!" Everyone goes for it.'
-        )
+        if self.nb_release:
+            self.do_release(t)
+            self.nb_release = False
+            self.caption(
+                t,
+                'A coach throws in a new ball ("New ball!") and the coach at the cone calls '
+                f'"Release!": the next player from each team joins. Now {self.odds_text()}. '
+                "Everyone goes for the ball.",
+            )
+        else:
+            self.caption(
+                t, 'A coach in the field throws in a new ball: "New ball!" Everyone goes for it.'
+            )
 
     def scoop(self, player, t, nxt):
         self.carrier = player
-        self.nb_phase = "done"
+        self.nb_phase = None if self.offense else "done"
         self.hold = 0
         self.last_passer = None
+        self.shot_ready = t + 3.0
         self.pending.append((t + DT,) + self.ball_xy_at(nxt[player.id]) + (0,))
         who = "Red" if player.team == "a" else "Blue"
-        self.caption(t + 1.0, f"{who} scoops it up and keep-away goes on.")
+        if self.offense:
+            self.caption(t + 1.0, f"{who} scoops it up and is on offense.")
+        else:
+            self.caption(t + 1.0, f"{who} scoops it up and keep-away goes on.")
 
     # ---- the ball: passes, the turnover, the drop ---------------------------------------
     def ball_events(self, t, carrier, nxt):
@@ -548,6 +737,10 @@ class Round:
                     f"from {loser}.",
                 )
                 return keys
+        if self.offense:
+            shot = self.try_shot(t, carrier, defence)
+            if shot:
+                return shot
         out_at = spec.get("new_ball_at")
         if out_at is not None and t >= out_at and self.nb_phase is None and offence:
             keys_out = self.send_out_of_bounds(t, carrier, defence)
@@ -573,7 +766,7 @@ class Round:
         want = 2 if len(in_play) <= 4 else spec.get("hold", 3)
         if self.hold >= want and offence and t >= self.arrives - 1e-9:
             choice = self.pick_receiver(t, carrier, offence, defence, nxt)
-            if choice and t + choice[1] <= self.spec["count_start"] + 5.0 - 0.05:
+            if choice and t + choice[1] <= self.spec.get("count_start", 1e9) + 5.0 - 0.05:
                 receiver, tau = choice
                 at = self.pos_at(receiver, nxt, tau)
                 keys.append((t + tau,) + self.ball_xy_at(at) + (0,))
@@ -629,6 +822,8 @@ class Round:
             score = (
                 lane + open_d - (1.5 if r is self.last_passer else 0.0) + self.rng.uniform(0, 0.8)
             )
+            if self.offense:  # pass toward the goal
+                score += 0.25 * (dist(carrier.pos, GOAL) - dist(at, GOAL))
             if score > best_score:
                 best, best_score = (r, tau), score
         return best
@@ -639,7 +834,7 @@ class Round:
         for _ in range(12):
             moved = False
             for a, b in itertools.combinations(everyone, 2):
-                need = SAME_MIN if a.team == b.team else OPP_MIN
+                need = self.same_min() if a.team == b.team else OPP_MIN
                 d = dist(nxt[a.id], nxt[b.id])
                 if d < need - 1e-6:
                     moved = True
@@ -659,13 +854,21 @@ class Round:
                 if d < COACH_MIN:
                     nxt[p.id] = add(self.c_nxt, unit(sub(nxt[p.id], self.c_nxt)), COACH_MIN)
                     moved = True
-                nxt[p.id] = clamp_zone(nxt[p.id]) if p.playing else nxt[p.id]
+                nxt[p.id] = (
+                    clamp_zone(nxt[p.id])
+                    if p.playing and self.nb_phase != "resetting"
+                    else nxt[p.id]
+                )
                 # nobody is faster than a player can be
                 step = dist(p.pos, nxt[p.id])
                 if step > V_CAP * DT:
                     nxt[p.id] = add(p.pos, unit(sub(nxt[p.id], p.pos)), V_CAP * DT)
             if not moved:
                 break
+
+    def same_min(self):
+        # people walking back into line stand as close as the line spaces them
+        return 2.3 if self.nb_phase == "resetting" else SAME_MIN
 
     def is_waiting(self, p):
         return not p.playing
@@ -676,7 +879,7 @@ class Round:
         for attempt in range(14):
             bad = []
             for a, b in itertools.combinations(people, 2):
-                need = (SAME_MIN if a.team == b.team else OPP_MIN) * ENDS_FACTOR
+                need = (self.same_min() if a.team == b.team else OPP_MIN) * ENDS_FACTOR
                 if min_gap(a.pos, nxt[a.id], b.pos, nxt[b.id]) < need:
                     bad.append((a, b))
             for q in people:
@@ -713,19 +916,22 @@ class Round:
             self.separate(nxt)
 
     # ---- the clock -----------------------------------------------------------------------
+    def do_release(self, t, with_whistle=True):
+        """The next player from each line joins; the coach at the cone calls it."""
+        for team in ("a", "b"):
+            if self.queues[team]:
+                pid = self.queues[team].pop(0)
+                self.players[pid].playing = True
+        if with_whistle:
+            self.say(t, 1.6, "coach", "Release!")
+
     def handle_events(self, t):
         spec = self.spec
-        for i, when in enumerate(spec["releases"]):
+        for i, when in enumerate(spec.get("releases", [])):
             if self.released > i or t + 1e-9 < when:
                 continue
             self.released = i + 1
-            joiners = []
-            for team in ("a", "b"):
-                if self.queues[team]:
-                    pid = self.queues[team].pop(0)
-                    self.players[pid].playing = True
-                    joiners.append(pid)
-            self.say(t, 1.6, "coach", "Release!")
+            self.do_release(t)
             self.caption(
                 t,
                 "The coach blows the whistle once: release! The next player from each team joins.",
@@ -735,8 +941,8 @@ class Round:
                 f"Now {self.odds_text()}. Same job: one defender on the ball, the others "
                 "cover the open players.",
             )
-        count = spec["count_start"]
-        if not self.counting and t + 1e-9 >= count:
+        count = spec.get("count_start")
+        if count is not None and not self.counting and t + 1e-9 >= count:
             self.counting = True
             for i, n in enumerate(range(5, 0, -1)):
                 self.caption(count + i, f"The coach counts down: {n}")
@@ -755,6 +961,8 @@ class Round:
         self.dropped = False
         self.loose_spot = None
         self.opening()
+        if self.offense:
+            return self.run_offense()
         end = self.spec["count_start"] + 5.0
         while self.t < end - 1e-9:
             self.step()
@@ -780,6 +988,25 @@ class Round:
             if p.playing:
                 p.keys.append((hold_t, p.pos[0], p.pos[1]))
         self.ball.append((hold_t,) + tuple(self.ball[-1][1:]))
+        self.duration = hold_t
+        self.validate()
+        return self.export()
+
+    def run_offense(self):
+        name = self.spec["id"]
+        while not self.finished and self.t < 160:
+            self.step()
+        if not self.finished:
+            raise SystemExit(f"{name}: the round never reached the reset")
+        hold_t = self.t + 1.5
+        for pid, goal in self.reset_targets.items():
+            self.players[pid].keys.append((hold_t, goal[0], goal[1]))
+        for p in self.players.values():
+            if not p.keys or p.keys[-1][0] < hold_t:
+                p.keys.append((hold_t, p.pos[0], p.pos[1]))
+        self.ball.append((hold_t,) + tuple(self.ball[-1][1:]))
+        self.g_keys.append((hold_t, self.g_pos[0], self.g_pos[1]))
+        self.coach_keys.append((hold_t, self.c_nxt[0], self.c_nxt[1]))
         self.duration = hold_t
         self.validate()
         return self.export()
@@ -812,6 +1039,10 @@ class Round:
                         f"({dist(pos[a.id], pos[b.id]):.2f})"
                     )
             coach_now = self.interp_keys(self.coach_keys, t)
+            if self.offense:
+                for pid, q in pos.items():
+                    if dist(q, GOAL) < GOAL_KEEP * 0.8:
+                        raise SystemExit(f"{name}: {pid} is in the crease at {t:.1f}s")
             for pid, q in pos.items():
                 if self.players[pid].playing and dist(q, coach_now) < COACH_MIN * 0.7:
                     raise SystemExit(f"{name}: {pid} too close to the coach at {t:.1f}s")
@@ -850,6 +1081,10 @@ class Round:
         for pid in [f"s{i}" for i in range(1, 6)] + [f"n{i}" for i in range(1, 6)]:
             p = self.players[pid]
             actors.append({"id": pid, "kind": "player", "team": p.team, "keys": keys(p.keys)})
+        if self.offense:
+            actors.append(
+                {"id": "goalie", "kind": "goalie", "team": "none", "keys": keys(self.g_keys)}
+            )
         actors.append({"id": "ball", "kind": "ball", "team": "none", "keys": keys(self.ball)})
         caps = sorted(self.captions, key=lambda c: c[0])
         return {
@@ -934,54 +1169,156 @@ ROUNDS = [
 ]
 
 
-def render() -> str:
+# Odd man, offense/defense. Like keep-away, but whoever has the ball is on offense and shoots when
+# there is a shot. `shots` lists what happens to each shot ("goal", "save" or "wide") and what the
+# coaches do next ("new_ball", "new_ball_release" or "reset").
+ODD_ROUNDS = [
+    {
+        "id": "standard",
+        "name": "Standard round: a goal, a new ball, then a save and a reset",
+        "summary": (
+            "Red wins the ground ball and attacks the net two on one. The shooter scores, a coach "
+            "throws in a new ball, they go again, the goalie makes a save and the coach resets."
+        ),
+        "mode": "offense",
+        "seeds": [7, 4, 12, 17, 9],
+        "gb_winner": "S",
+        "shot_after": 5.0,
+        "shots": [("goal", "new_ball"), ("save", "reset")],
+    },
+    {
+        "id": "goal-reset",
+        "name": "A goal, then reset",
+        "summary": (
+            "Red wins the ground ball and scores. The coach calls reset and everyone goes back to "
+            "the lines."
+        ),
+        "mode": "offense",
+        "seeds": [2, 5, 6, 7, 8],
+        "gb_winner": "S",
+        "shot_after": 5.0,
+        "shots": [("goal", "reset")],
+    },
+    {
+        "id": "goal-new-ball-release",
+        "name": "A goal, then a new ball and a release",
+        "summary": (
+            "After the goal a coach throws in a new ball and the coach at the cone releases the "
+            "next player from each line, so it is three on two. Next shot goes wide, then reset."
+        ),
+        "mode": "offense",
+        "seeds": [2, 15, 17, 13, 9],
+        "gb_winner": "S",
+        "shot_after": 5.0,
+        "shots": [("goal", "new_ball_release"), ("wide", "reset")],
+    },
+    {
+        "id": "man-down-offense",
+        "name": "The man down team gets the ball",
+        "summary": (
+            "Blue, a player down, wins the ground ball. Blue is on offense now, with no take "
+            "back. The shot is saved, a new ball goes in, and the next one scores."
+        ),
+        "mode": "offense",
+        "seeds": [8, 10, 6, 12, 9],
+        "gb_winner": "N",
+        "shot_after": 5.0,
+        "shots": [("save", "new_ball"), ("goal", "reset")],
+    },
+]
+
+
+def format_take(seed, r, pad):
+    """One take as JavaScript object text. Used inline and in the take files."""
+    lines = [f"{pad}{{", f"{pad}  seed: {seed},", f"{pad}  duration: {r['duration']},"]
+    lines.append(f"{pad}  actors: [")
+    for a in r["actors"]:
+        meta = {k: v for k, v in a.items() if k != "keys"}
+        lines.append(
+            f"{pad}    {{ ..."
+            + json.dumps(meta)
+            + ", keys: "
+            + json.dumps(a["keys"], separators=(",", ":"))
+            + " },"
+        )
+    lines.append(f"{pad}  ],")
+    lines.append(f"{pad}  captions: " + json.dumps(r["captions"], ensure_ascii=False) + ",")
+    lines.append(f"{pad}  speech: " + json.dumps(r["speech"], ensure_ascii=False) + ",")
+    lines.append(f"{pad}}}")
+    return lines
+
+
+def render_file(const, rounds, intro, drill_id):
+    """The data module (the first take of every version, plus the list of seeds) and the take
+    files (every other seed), which the page loads only when someone picks that seed."""
     lines = [
-        "// Generated by scripts/keepaway_choreography.py. Do not edit by hand: change that script",
-        "// and run `make choreography`. Each round has several takes, one per random seed (the",
-        "// first is the default). Each key is [time, x, y]; a ball key ending in 1 means the ball",
-        "// is on the ground.",
-        "export const KEEP_AWAY_VARIANTS = [",
+        "// Generated by scripts/choreography.py. Do not edit by hand: change that script",
+        "// and run `make choreography`. Each round (version) has several takes, one per seed",
+        "// (the first is the default and is here; the others are loaded from takes/ when picked).",
+        "// Each key is [time, x, y]; a ball key ending in 1 means the ball is on the ground.",
+        f"// {intro}",
+        f"export const {const} = [",
     ]
-    for spec in ROUNDS:
+    files: dict[Path, str] = {}
+    for spec in rounds:
         takes = [Round(dict(spec, seed=seed)).run() for seed in spec["seeds"]]
         lines.append("  {")
         for key in ("id", "name", "summary"):
             lines.append(f"    {key}: {json.dumps(takes[0][key])},")
+        lines.append(f"    seeds: {json.dumps(spec['seeds'])},")
         lines.append("    takes: [")
-        for seed, r in zip(spec["seeds"], takes, strict=True):
-            lines.append("      {")
-            lines.append(f"        seed: {seed},")
-            lines.append(f"        duration: {r['duration']},")
-            lines.append("        actors: [")
-            for a in r["actors"]:
-                meta = {k: v for k, v in a.items() if k != "keys"}
-                lines.append(
-                    "          { ..."
-                    + json.dumps(meta)
-                    + ", keys: "
-                    + json.dumps(a["keys"], separators=(",", ":"))
-                    + " },"
-                )
-            lines.append("        ],")
-            lines.append("        captions: " + json.dumps(r["captions"], ensure_ascii=False) + ",")
-            lines.append("        speech: " + json.dumps(r["speech"], ensure_ascii=False) + ",")
-            lines.append("      },")
+        first = format_take(spec["seeds"][0], takes[0], "      ")
+        first[-1] += ","
+        lines += first
         lines.append("    ],")
         lines.append("  },")
+        for seed, r in list(zip(spec["seeds"], takes, strict=True))[1:]:
+            body = format_take(seed, r, "")
+            key = json.dumps(f"{drill_id}/{spec['id']}/{seed}")
+            text = (
+                "// Generated by scripts/choreography.py. Do not edit by hand.\n"
+                f"(window.LAX_TAKES = window.LAX_TAKES || {{}})[{key}] =\n"
+                + "\n".join(body)
+                + ";\n"
+            )
+            files[TAKES_DIR / drill_id / f"{spec['id']}-{seed}.js"] = text
     lines.append("];")
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines) + "\n", files
+
+
+OUTPUTS = [
+    (OUT, "KEEP_AWAY_VARIANTS", ROUNDS, "Keep away.", "keep-away"),
+    (OUT_ODD, "ODD_MAN_VARIANTS", ODD_ROUNDS, "Odd man, offense/defense.", "odd-man"),
+]
 
 
 def main() -> int:
-    text = render()
+    modules: dict[Path, str] = {}
+    files: dict[Path, str] = {}
+    for path, const, rounds, intro, drill_id in OUTPUTS:
+        text, takes = render_file(const, rounds, intro, drill_id)
+        modules[path] = text
+        files.update(takes)
+    expected = {**modules, **files}
+    existing = {p for p in TAKES_DIR.rglob("*.js")} if TAKES_DIR.is_dir() else set()
     if "--check" in sys.argv[1:]:
-        if not OUT.is_file() or OUT.read_text() != text:
-            print("src/js/keepaway_data.js is out of date; run `make choreography` and commit it")
+        stale = [p for p, text in expected.items() if not p.is_file() or p.read_text() != text]
+        stale += sorted(existing - set(files))  # take files nothing generates any more
+        if stale:
+            names = ", ".join(str(p.relative_to(ROOT)) for p in stale[:6])
+            print(f"out of date: {names}; run `make choreography` and commit the result")
             return 1
-        print("keepaway_data.js is up to date")
+        print("keepaway_data.js, oddman_data.js and src/takes/ are up to date")
         return 0
-    OUT.write_text(text)
-    print(f"wrote {OUT.relative_to(ROOT)} ({len(text) // 1024} KiB, {len(ROUNDS)} rounds)")
+    for path in existing - set(files):
+        path.unlink()
+    for path, text in expected.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+    for path in modules:
+        print(f"wrote {path.relative_to(ROOT)} ({len(modules[path]) // 1024} KiB)")
+    size = sum(len(t) for t in files.values()) // 1024
+    print(f"wrote {len(files)} take files to src/takes/ ({size} KiB)")
     return 0
 
 

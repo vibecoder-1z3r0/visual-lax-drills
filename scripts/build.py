@@ -9,6 +9,7 @@ which file is used for every icon.
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -22,7 +23,17 @@ VIEW_BOX = "-32 -32 64 64"
 SVG_NS = "http://www.w3.org/2000/svg"
 
 # Dependency order. Modules share one flat scope after bundling, so top-level names must be unique.
-JS_ORDER = ["constants", "engine", "keepaway_data", "drills", "render", "ui", "main"]
+JS_ORDER = [
+    "constants",
+    "engine",
+    "keepaway_data",
+    "oddman_data",
+    "drills",
+    "takes",
+    "render",
+    "ui",
+    "main",
+]
 
 # Every icon the page needs. Add a name here and a file in src/icons/ to add a new one.
 ICONS = ["player", "goalie", "coach", "net", "ball", "ballbag", "cone"]
@@ -156,7 +167,16 @@ def main() -> int:
         )
         DIST.mkdir(exist_ok=True)
         (DIST / "index.html").write_text(html, encoding="utf-8")
-        print(f"\nwrote dist/index.html ({len(html) / 1024:.1f} KiB)")
+        # Takes other than the default ones are separate files, loaded when a seed is picked.
+        takes_out = DIST / "takes"
+        if takes_out.exists():
+            shutil.rmtree(takes_out)
+        if (SRC / "takes").is_dir():
+            shutil.copytree(SRC / "takes", takes_out)
+        count = len(list(takes_out.rglob("*.js"))) if takes_out.exists() else 0
+        print(
+            f"\nwrote dist/index.html ({len(html) / 1024:.1f} KiB) and {count} files in dist/takes/"
+        )
         return 0
     except BuildError as exc:
         print(f"build failed: {exc}", file=sys.stderr)

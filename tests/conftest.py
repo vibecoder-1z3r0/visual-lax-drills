@@ -77,6 +77,11 @@ def page(context, site) -> Page:
     assert pg.errors == [], pg.errors
 
 
+def load_every_take(page: Page) -> None:
+    """Only a version's default take is in the page; load the rest (they are separate files)."""
+    page.evaluate("LAX.loadEveryTake()")
+
+
 def choose_drill(page: Page, drill_id: str) -> None:
     """Switch the page to a drill by id, so tests do not depend on the order of the list."""
     index = page.evaluate(f"LAX.DRILLS.findIndex((d) => d.id === '{drill_id}')")

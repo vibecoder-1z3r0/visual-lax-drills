@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import pytest
-from conftest import choose_drill
+from conftest import choose_drill, load_every_take
 
 FIELD_W, FIELD_H = 60, 55
 # Every drill as it plays: a drill with versions counts once per version, and once per take (seed).
 ALL_PLAYABLE = """LAX.DRILLS.flatMap((d) => d.variants
-  ? d.variants.flatMap((v, i) => (v.takes || [v]).map((_, k) => LAX.resolveDrill(d, i, k)))
+  ? d.variants.flatMap((v, i) => (v.seeds || [0]).map((_, k) => LAX.resolveDrill(d, i, k)))
   : [d])"""
 
 
@@ -18,6 +18,7 @@ def test_track_interpolates_and_clamps(page):
 
 
 def test_every_drill_is_well_formed(page):
+    load_every_take(page)
     drills = page.evaluate(ALL_PLAYABLE)
     assert drills
     ids = [d["id"] for d in page.evaluate("LAX.DRILLS")]
@@ -227,6 +228,7 @@ def test_ground_ball_mania_players_keep_moving_and_stay_believable(page):
 
 def test_every_actor_stays_inside_its_drills_view(page):
     """A drill zooms in with `view`; nobody may leave the part of the field that is shown."""
+    load_every_take(page)
     drills = page.evaluate(ALL_PLAYABLE)
     for drill in drills:
         view = drill.get("view")
@@ -253,6 +255,7 @@ def test_every_actor_stays_inside_its_drills_view(page):
 def test_a_held_ball_sits_in_the_sticks_pocket(page):
     """Whenever a ball is held by a player (a ball keyframe with a player right there), it is at the
     stick's pocket: about 0.375 of the icon width across and 0.25 up, scaled to the drill's icons."""
+    load_every_take(page)
     result = page.evaluate(
         """() => {
       const ALL = __ALL__;

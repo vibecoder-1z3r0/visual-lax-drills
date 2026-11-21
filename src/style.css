@@ -258,6 +258,12 @@ button.primary {
   color: var(--muted);
 }
 
+#take-error {
+  margin: 0 0 0.75rem;
+  color: #b42318; /* an error is red in every theme */
+  font-size: 0.9rem;
+}
+
 #notes {
   margin: -0.25rem 0 0.75rem;
   color: var(--muted);
@@ -334,6 +340,11 @@ button.primary {
   font-size: 1.1px;
   opacity: 0.9;
   text-anchor: middle;
+}
+
+/* The goalie belongs to neither team in odd man, offense/defense, so it gets its own color. */
+.kind-goalie.team-none {
+  --team: #8b5cf6;
 }
 
 .speech-box {

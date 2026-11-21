@@ -1,4 +1,5 @@
 import { KEEP_AWAY_VARIANTS } from "./keepaway_data.js";
+import { ODD_MAN_VARIANTS } from "./oddman_data.js";
 
 // Drills are plain data. Coordinates are field yards (see constants.js). Every actor has a list of
 // keyframes {t, x, y}; an actor with a single key stands still. `team` picks the ring color
@@ -8,10 +9,29 @@ import { KEEP_AWAY_VARIANTS } from "./keepaway_data.js";
 // stays real size); a drill that can only zoom a little uses a larger one so its icons stay readable.
 const k = (t, x, y) => ({ t, x, y });
 
-// Keep-away's rounds are generated (scripts/keepaway_choreography.py) as [time, x, y] rows, and a
+// Keep-away's rounds are generated (scripts/choreography.py) as [time, x, y] rows, and a
 // ball row ending in 1 means the ball is on the ground. Turn them into keyframes.
 const toKeys = (rows) =>
   rows.map(([t, x, y, loose]) => (loose ? { t, x, y, loose: true } : { t, x, y }));
+
+// A generated take (one random seed) as the engine wants it.
+export const expandTake = (raw) => ({
+  seed: raw.seed,
+  duration: raw.duration,
+  actors: raw.actors.map((a) => ({ ...a, keys: toKeys(a.keys) })),
+  captions: raw.captions.map(([t, text]) => ({ t, text })),
+  speech: raw.speech.map(([t, dur, who, text]) => ({ t, dur, who, text })),
+});
+
+// A generated version has its default take here and lists all its seeds. The other takes are
+// loaded from takes/ when someone picks that seed (see takes.js), and put in `takes` by position.
+const variantFrom = (v) => ({
+  id: v.id,
+  name: v.name,
+  summary: v.summary,
+  seeds: v.seeds,
+  takes: [expandTake(v.takes[0])],
+});
 
 export const DRILLS = [
   {
@@ -67,18 +87,27 @@ export const DRILLS = [
       { type: "line", x1: 15, y1: 35, x2: 45, y2: 35, dash: true },
       { type: "text", x: 41.5, y: 34.1, text: "20-yard line" },
     ],
-    variants: KEEP_AWAY_VARIANTS.map((v) => ({
-      id: v.id,
-      name: v.name,
-      summary: v.summary,
-      takes: v.takes.map((take) => ({
-        seed: take.seed,
-        duration: take.duration,
-        actors: take.actors.map((a) => ({ ...a, keys: toKeys(a.keys) })),
-        captions: take.captions.map(([t, text]) => ({ t, text })),
-        speech: take.speech.map(([t, dur, who, text]) => ({ t, dur, who, text })),
-      })),
-    })),
+    variants: KEEP_AWAY_VARIANTS.map(variantFrom),
+  },
+  {
+    id: "odd-man",
+    title: "Syracuse (odd man, offense/defense)",
+    summary:
+      "Like keep away, but whoever has the ball is on offense and takes any shot on net. The " +
+      "team a player down defends goal side. After a goal a coach can throw in a new ball, call " +
+      "a reset, or throw in a new ball and release the next player from each line.",
+    // The same small field as keep away; the view reaches up to the goal.
+    view: { x: 6, y: 7, w: 44, h: 42 },
+    iconScale: 1.35,
+    notes:
+      "Note: also called odd man, offense/defense. If the team a player down gets the ball, it is on offense, with no take back. Either coach can run the drill; here the coach at the cone calls the releases and the reset, and the coach in the field throws in new balls.",
+    midfieldLabel: false,
+    markings: [
+      { type: "rect", x: 15, y: 5, w: 30, h: 50 },
+      { type: "line", x1: 15, y1: 35, x2: 45, y2: 35, dash: true },
+      { type: "text", x: 41.5, y: 34.1, text: "20-yard line" },
+    ],
+    variants: ODD_MAN_VARIANTS.map(variantFrom),
   },
   {
     id: "two-man-shoot",

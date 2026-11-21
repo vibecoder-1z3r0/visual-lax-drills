@@ -59,7 +59,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: dist
-          path: dist/index.html
+          path: dist/
 
   # Merges to main publish the site with GitHub's own Pages actions. In the repository settings,
   # Pages > Build and deployment > Source must be "GitHub Actions". The artifact upload and the
