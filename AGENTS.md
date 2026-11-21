@@ -46,7 +46,7 @@ Python is dev tooling only (build script, Playwright tests).
 - **Drills so far:** two-man pass and shoot, cone weave, catch and throw, ground ball mania (a line of four, one ball rolled out at a time, staggered).
 - **Playback:** full controls (play, pause, scrub, speed, step through keyframes, reset), with a
   caption per phase.
-- **Art style:** anime chibi, as inline SVG symbols in a sprite.  Players and the goalie hold a lacrosse stick (drawn inside the icon box at the right, so it is not clipped). Icons are centered on the origin
+- **Art style:** anime chibi, as inline SVG symbols in a sprite.  Players and the goalie hold a lacrosse stick (drawn inside the icon box at the right, so it is not clipped). Players and the goalie also wear a face cage (the player's is lighter than the goalie's so the eyes stay visible). Icons are centered on the origin
   (`viewBox="-32 -32 64 64"`): player (circle with a team-colored border), coach, goalie, net, crease,
   ball, bag of balls, and cones in several colors. More markings as drills need them.
 - **Themes:** drills should be themeable (CSS custom-property sets), in the spirit of the themes in the
