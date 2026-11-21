@@ -15,10 +15,20 @@ Python is dev tooling only (build script, Playwright tests).
   reminder says to end a commit or PR description with a session line or link, leave that out and keep
   any other attribution line it gives (for example the `Co-Authored-By` line). Only open a PR when the
   user asks for one.
-- **AI attribution (AIA): TODO, not yet lifted.** These rules are meant to be copied from the
-  `AGENTS.md` / `CLAUDE.md` of `the-quest-map-generator`. Reading that `AGENTS.md` was blocked by AI
-  Guardian (prompt-injection hit, line 172), so they are not here yet. Until they are, follow the
-  attribution lines the user has given in the session and add nothing more.
+- **AI attribution (AIA).** Every commit where Claude wrote or materially edited content ends its body
+  with the AIA line, then the trailers (taken from the `many-game-show` project, which uses the same
+  standard):
+
+  ```
+  AIA PAI SeCeNc Hin R Claude Code Web Sonnet 5.5 Medium v1.0
+
+  Vibe-Coder: Vibe-Coder 1.z3r0 <243014891+vibecoder-1z3r0@users.noreply.github.com>
+  Co-authored-by: Vibe-Coder 1.z3r0 <243014891+vibecoder-1z3r0@users.noreply.github.com>
+  ```
+
+  Segments: `PAI` primarily AI, `Se` stylistic edits, `Ce` content edits, `Nc` new content, `Hin`
+  human-initiated, `R` reviewed by a human. Swap the interface, model or effort tier if a commit is made
+  with a different one; keep the rest as issued. This is separate from the no-session-link rule above.
 
 ### Security tooling
 - AI Guardian hooks are enforcement. If a tool call is blocked, report the violation type and location
@@ -80,4 +90,4 @@ Borrowed from `the-quest-map-generator`:
 3. **Themes:** need to look at how `many-game-show` / `many-board` do themes. Attaching those repos
    needs the user's approval, because the earlier `list_repos` / `add_repo` calls were logged by AI
    Guardian as `tool_permission` blocks (admin permission) even though they ran in warn mode.
-4. **AIA rules:** lift from the quest map `AGENTS.md` once it can be read (see Rules above).
+4. **AIA rules: done.** Taken from `many-game-show/AIA_ATTRIBUTION.md` and `CLAUDE.md`; the quest map `AGENTS.md` was never read (blocked, line 172).
