@@ -106,3 +106,28 @@ def test_ground_ball_mania_rolls_stay_within_ten_yards_of_the_coach(page):
         for key in ball["keys"]:
             dist = ((key["x"] - coach["x"]) ** 2 + (key["y"] - coach["y"]) ** 2) ** 0.5
             assert dist <= 10, (ball["id"], key)
+
+
+def test_ground_ball_mania_nobody_collides(page):
+    """Kids keep clear of each other, the coach, the cone and the bag, and a rolled ball never
+    passes close to a kid other than the one it is rolled for."""
+    drill = page.evaluate("LAX.DRILLS.find((d) => d.id === 'ground-ball-mania')")
+    actors = {a["id"]: a["keys"] for a in drill["actors"]}
+    kids = [i for i in actors if i.startswith("p")]
+    steps = int(drill["duration"] / 0.05)
+
+    def at(ident, t):
+        return page.evaluate("([keys, t]) => LAX.trackAt(keys, t)", [actors[ident], t])
+
+    def dist(a, b):
+        return ((a["x"] - b["x"]) ** 2 + (a["y"] - b["y"]) ** 2) ** 0.5
+
+    for n in range(steps + 1):
+        t = n * 0.05
+        pos = {i: at(i, t) for i in kids}
+        for i, a in enumerate(kids):
+            for b in kids[i + 1 :]:
+                assert dist(pos[a], pos[b]) >= 2.8, (t, a, b)
+            assert dist(pos[a], at("coach", t)) >= 3.0, (t, a, "coach")
+            assert dist(pos[a], at("cone", t)) >= 2.4, (t, a, "cone")
+            assert dist(pos[a], at("bag", t)) >= 2.7, (t, a, "bag")
