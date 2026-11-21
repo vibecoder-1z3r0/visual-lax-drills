@@ -50,14 +50,16 @@ def test_advance_stops_at_the_end(page):
 
 
 def test_ball_travels_with_the_pass(page):
-    # In two-man pass and shoot A1 passes to A2, so at t=2 the ball is on A2 and the page shows it there.
+    # In two-man pass and shoot A1 passes to A2, so at t=2 the ball is in A2's stick and the page shows it there.
     choose_drill(page, "two-man-shoot")
     page.evaluate("LAX.app.engine.seek(2)")
     pos = page.evaluate("LAX.app.engine.positions()")
-    assert pos["ball"] == pos["a2"] == {"x": 46, "y": 38}
-    assert (
-        page.locator("g[data-actor='ball']").get_attribute("transform")
-        == "translate(46.000 38.000)"
+    size = page.evaluate("LAX.ICON_SIZE.player * LAX.app.engine.drill.iconScale")
+    assert pos["ball"]["x"] == pytest.approx(pos["a2"]["x"] + 0.375 * size, abs=0.05)
+    assert pos["ball"]["y"] == pytest.approx(pos["a2"]["y"] - 0.25 * size, abs=0.05)
+    x, y = pos["ball"]["x"], pos["ball"]["y"]
+    assert page.locator("g[data-actor='ball']").get_attribute("transform") == (
+        f"translate({x:.3f} {y:.3f})"
     )
 
 
@@ -141,9 +143,9 @@ def test_ground_ball_mania_nobody_collides(page):
 
 
 def test_ground_ball_mania_rolled_balls_never_pass_close_to_a_player(page):
-    """A ball that is moving must stay clear of every player. A carried ball sits about 1.8 yards
-    from its player, so anything closer than 1.0 means a ball was rolled into someone. (A player's own ball
-    is allowed to come this close for an instant as it leaves their stick.)"""
+    """A ball that is moving must stay clear of every player. A carried ball sits about 0.8 yards
+    from its player (in the stick's pocket); anything much closer than that means a ball was rolled
+    through someone. (A player's own ball may dip a little inside as it leaves the stick.)"""
     drill = page.evaluate("LAX.DRILLS.find((d) => d.id === 'ground-ball-mania')")
     actors = {a["id"]: a["keys"] for a in drill["actors"]}
     kids = [i for i in actors if i.startswith("p")]
@@ -163,7 +165,7 @@ def test_ground_ball_mania_rolled_balls_never_pass_close_to_a_player(page):
             now = at(ball, t)
             if dist(now, previous) > 0.05:
                 for kid in kids:
-                    assert dist(now, at(kid, t)) >= 1.0, (t, ball, kid)
+                    assert dist(now, at(kid, t)) >= 0.5, (t, ball, kid)
             previous = now
 
 
@@ -242,3 +244,31 @@ def test_every_actor_stays_inside_its_drills_view(page):
                     actor["id"],
                     key,
                 )
+
+
+def test_a_held_ball_sits_in_the_sticks_pocket(page):
+    """Whenever a ball is held by a player (a ball keyframe with a player right there), it is at the
+    stick's pocket: about 0.375 of the icon width across and 0.25 up, scaled to the drill's icons."""
+    result = page.evaluate(
+        """() => {
+      const bad = [];
+      for (const drill of LAX.DRILLS) {
+        const size = LAX.ICON_SIZE.player * (drill.iconScale || 1);
+        const players = drill.actors.filter((a) => a.kind === 'player');
+        for (const ball of drill.actors.filter((a) => a.kind === 'ball')) {
+          for (const key of ball.keys) {
+            for (const p of players) {
+              const at = LAX.trackAt(p.keys, key.t);
+              const dx = key.x - at.x, dy = key.y - at.y;
+              if (Math.hypot(dx, dy) > 1.6 * size) continue;         // not held by this player
+              if (Math.abs(dx - 0.375 * size) > 0.12 * size || Math.abs(dy + 0.25 * size) > 0.12 * size) {
+                bad.push({ drill: drill.id, ball: ball.id, t: key.t, player: p.id, dx, dy });
+              }
+            }
+          }
+        }
+      }
+      return bad;
+    }"""
+    )
+    assert result == [], result
