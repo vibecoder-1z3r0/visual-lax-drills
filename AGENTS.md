@@ -79,8 +79,9 @@ Python is dev tooling only (build script, Playwright tests).
   if the file is stale). Do not edit that file by hand; change the script and its seeds.
 - **Syracuse (odd man, offense/defense)** uses the same field as keep away and the same generator
   (`scripts/choreography.py`, `mode: "offense"`, output `src/js/oddman_data.js`). Whoever has the
-  ball is on offense: they drive at the goal and shoot at a goalie (`team: "none"`, purple) when there
-  is a shot. Each round lists its `shots` (`goal`, `save` or `wide`) and what the coaches do after each
+  ball is on offense: they drive at the goal and cut to attack spots about eight yards out, and shoot when there
+  is a shot. A goalie is optional (`goalie: true` on a round; `team: "none"`, purple): only one
+  version has one, and only it has saves. Each round lists its `shots` (`goal`, `save` or `wide`) and what the coaches do after each
   (`new_ball`, `new_ball_release`, `reset`). The team a player down that gets the ball is on offense,
   no take back. Players keep out of the crease; everyone walks back to the lines on reset.
 - **Seeds and takes:** a generated version has its default take inline and lists all its `seeds`.
