@@ -127,7 +127,7 @@ def test_ground_ball_mania_nobody_collides(page):
         pos = {i: at(i, t) for i in kids}
         for i, a in enumerate(kids):
             for b in kids[i + 1 :]:
-                assert dist(pos[a], pos[b]) >= 2.8, (t, a, b)
-            assert dist(pos[a], at("coach", t)) >= 3.0, (t, a, "coach")
+                assert dist(pos[a], pos[b]) >= 3.2, (t, a, b)
+            assert dist(pos[a], at("coach", t)) >= 3.2, (t, a, "coach")
             assert dist(pos[a], at("cone", t)) >= 2.4, (t, a, "cone")
             assert dist(pos[a], at("bag", t)) >= 2.7, (t, a, "bag")
