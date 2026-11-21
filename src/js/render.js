@@ -54,10 +54,12 @@ export function buildField(svg) {
     });
   }
   svgEl(svg, "rect", { class: "field-line", x: 0, y: 0, width: FIELD_W, height: FIELD_H });
-  svgEl(svg, "circle", { class: "crease", cx: GOAL_X, cy: GOAL_Y, r: CREASE_R });
+  // The goal (crease and net) is one group so a drill can hide it with `goal: false`.
+  const goal = svgEl(svg, "g", { id: "goal" });
+  svgEl(goal, "circle", { class: "crease", cx: GOAL_X, cy: GOAL_Y, r: CREASE_R });
   // The net sits on the goal line with its open front facing the field.
   const netY = GOAL_Y - (18 / 64) * ICON_SIZE.net;
-  const net = svgEl(svg, "g", { transform: `translate(${GOAL_X} ${netY})` });
+  const net = svgEl(goal, "g", { transform: `translate(${GOAL_X} ${netY})` });
   iconUse(net, "net");
   const label = svgEl(svg, "text", { class: "field-label", x: FIELD_W / 2, y: FIELD_H + 2 });
   label.textContent = "toward midfield";

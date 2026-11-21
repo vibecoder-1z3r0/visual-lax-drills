@@ -28,6 +28,9 @@ export function loadDrill(index) {
   engine.onChange(refresh);
   app.engine = engine;
   app.layer.replaceChildren();
+  // A drill can hide the goal and crease (`goal: false`), e.g. when the field is just open space.
+  const goal = document.getElementById("goal");
+  if (goal) goal.style.display = drill.goal === false ? "none" : "";
   app.actors = buildActors(app.layer, drill);
   $("title").textContent = drill.title;
   $("summary").textContent = drill.summary;

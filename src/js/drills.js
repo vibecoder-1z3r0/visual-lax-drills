@@ -1,6 +1,6 @@
 // Drills are plain data. Coordinates are field yards (see constants.js). Every actor has a list of
 // keyframes {t, x, y}; an actor with a single key stands still. `team` picks the ring color
-// (a, b, or none), `color` picks a cone color.
+// (a, b, or none), `color` picks a cone color. `goal: false` hides the goal and crease.
 const k = (t, x, y) => ({ t, x, y });
 
 export const DRILLS = [
@@ -115,6 +115,7 @@ export const DRILLS = [
   {
     id: "ground-ball-mania",
     title: "Ground ball mania",
+    goal: false,
     summary: "The coach stands beside the cone and rolls balls out one at a time. Each player runs out from the line, scoops one, rolls it back to the coach and rejoins the line.",
     duration: 21.0,
     actors: [
@@ -132,7 +133,7 @@ export const DRILLS = [
     ],
     captions: [
       { t: 0, text: "Four players line up behind the cone. The coach stands beside the cone with the balls." },
-      { t: 0.8, text: "Coach rolls a ball toward the goal, about 9 yards out." },
+      { t: 0.8, text: "Coach rolls a ball up the field, about 9 yards out." },
       { t: 1.4, text: "The first player runs through the cone and attacks the ball." },
       { t: 2.9, text: "Scoop it: get low, stick down, and keep your feet moving through it." },
       { t: 3.2, text: "As the player scoops, the coach is already rolling the next ball out." },

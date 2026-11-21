@@ -56,7 +56,7 @@ Python is dev tooling only (build script, Playwright tests).
 - **Field:** real lacrosse dimensions in one coordinate system (yards), so every drill is plain data
   and scales cleanly.
 - **Drills are data:** actors (player, coach, goalie, ball, cones...) plus per-actor keyframe tracks
-  `{t, x, y}` and a caption list. One engine plays all of them.
+  `{t, x, y}` and a caption list. One engine plays all of them. A drill can set `goal: false` to hide the goal and crease (ground ball mania does).
 - **Engine:** has a controllable clock (`seek(t)`, `advance(dtMs)`, `play`, `pause`, `setSpeed`,
   `reset`) so tests can jump to exact times and never wait on real time. Exposed for tests as
   `window.LAX`.
