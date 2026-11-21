@@ -33,7 +33,7 @@ def test_drill_selector_switches_drills(page):
 
 def test_every_theme_restyles_the_page(page):
     options = page.locator("#theme option").evaluate_all("els => els.map(e => e.value)")
-    assert options == ["day", "night", "stadium", "field"]
+    assert options == ["day", "night", "stadium", "stage", "bright", "field"]
     seen = {page.evaluate("getComputedStyle(document.body).backgroundColor")}
     for theme in options[1:]:
         page.select_option("#theme", theme)

@@ -25,6 +25,8 @@ export const THEMES = [
   { id: "day", name: "Day" },
   { id: "night", name: "Night" },
   { id: "stadium", name: "Stadium" },
+  { id: "stage", name: "Stage" },
+  { id: "bright", name: "Bright" },
   { id: "field", name: "Field" },
 ];
 

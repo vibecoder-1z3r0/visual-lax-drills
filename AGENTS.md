@@ -87,7 +87,5 @@ Borrowed from `the-quest-map-generator`:
    Do not retry it in another form; ask the user first. If it is ever added, redact secret-shaped
    prompts in the log (the user chose redaction), because `SESSION_LOG.md` records the first 70
    characters of every prompt.
-3. **Themes:** need to look at how `many-game-show` / `many-board` do themes. Attaching those repos
-   needs the user's approval, because the earlier `list_repos` / `add_repo` calls were logged by AI
-   Guardian as `tool_permission` blocks (admin permission) even though they ran in warn mode.
+3. **Themes: done.** Six themes: day, night, plus stadium and field (from `many-board`) and stage and bright (from `many-game-show`, `big-tokens.html`). Only UI palettes were taken; grass, line and team colors are chosen here. The flagged `many-game-show` files (`UI_LOOK_AND_FEEL.md`, `static/index.html`) were not read.
 4. **AIA rules: done.** Taken from `many-game-show/AIA_ATTRIBUTION.md` and `CLAUDE.md`; the quest map `AGENTS.md` was never read (blocked, line 172).

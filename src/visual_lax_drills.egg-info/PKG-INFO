@@ -1,0 +1,14 @@
+Metadata-Version: 2.4
+Name: visual-lax-drills
+Version: 0.0.0
+Summary: Dev tooling for Visual Lax Drills (the shipped site has no Python).
+Requires-Python: >=3.11
+License-File: LICENSE
+Provides-Extra: dev
+Requires-Dist: playwright==1.63.0; extra == "dev"
+Requires-Dist: pytest>=8; extra == "dev"
+Requires-Dist: pillow>=10; extra == "dev"
+Requires-Dist: ruff>=0.6; extra == "dev"
+Requires-Dist: deno>=2; extra == "dev"
+Requires-Dist: html5lib>=1.1; extra == "dev"
+Dynamic: license-file
