@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import functools
+import http.server
 import os
+import threading
 from pathlib import Path
 
 import pytest
@@ -11,13 +14,39 @@ DIST = ROOT / "dist"
 ARTIFACTS = ROOT / "test-artifacts"
 
 
-@pytest.fixture(scope="session")
-def site() -> str:
-    """The built page as a file:// URL. It is one static file, so no server is needed."""
+def _built_page() -> Path:
     page = DIST / "index.html"
     if not page.is_file():
         pytest.fail("dist/index.html is missing; run `make build` (or `make test`)")
-    return page.as_uri()
+    return page
+
+
+class _QuietHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, *args):  # keep the test output clean
+        pass
+
+
+@pytest.fixture(scope="session")
+def site():
+    """The built page served over HTTP by a throwaway local server, like GitHub Pages serves it.
+
+    Most tests use this. Over file:// Chromium sometimes drops a localStorage write when the page is
+    reloaded straight away (about 6 reloads in 100 under load), which made the theme test flaky.
+    `file_site` below covers opening the page straight from disk.
+    """
+    _built_page()
+    handler = functools.partial(_QuietHandler, directory=str(DIST))
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{server.server_address[1]}/index.html"
+    server.shutdown()
+    server.server_close()
+
+
+@pytest.fixture(scope="session")
+def file_site() -> str:
+    """The built page as a file:// URL, the way a person opens the single file from disk."""
+    return _built_page().as_uri()
 
 
 @pytest.fixture(scope="session")

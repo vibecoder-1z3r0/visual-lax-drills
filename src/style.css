@@ -112,6 +112,45 @@
   --ball: #ff8a1f;
 }
 
+/* "navy" is the default palette of the many-board project (navy with crimson) and "gold" the default
+   of many-game-show (navy with gold). Only their UI colors are taken; the grass, line, team and ball
+   colors are chosen here for a lacrosse field. */
+[data-theme="navy"] {
+  --bg: #1a1a2e;
+  --panel: #16213e;
+  --text: #e0e0e0;
+  --muted: #9a9aaa;
+  --border: #0f3460;
+  --accent: #e94560;
+  --accent-text: #ffffff;
+  --grass-a: #24603a;
+  --grass-b: #1f5733;
+  --surround: #101a30;
+  --field-line: #e0e0e0;
+  --crease-fill: rgba(233, 69, 96, 0.16);
+  --team-a: #ff6b81;
+  --team-b: #4fc3f7;
+  --ball: #ffd54f;
+}
+
+[data-theme="gold"] {
+  --bg: #0b1220;
+  --panel: #131c2e;
+  --text: #f5f7fa;
+  --muted: #9aa5b8;
+  --border: #263252;
+  --accent: #ffcc00;
+  --accent-text: #0b1220;
+  --grass-a: #1d5236;
+  --grass-b: #184a30;
+  --surround: #0d1424;
+  --field-line: #f5f7fa;
+  --crease-fill: rgba(255, 204, 0, 0.14);
+  --team-a: #ff6b6b;
+  --team-b: #4fc3f7;
+  --ball: #ffcc00;
+}
+
 * {
   box-sizing: border-box;
 }

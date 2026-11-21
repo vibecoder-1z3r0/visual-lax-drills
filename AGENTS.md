@@ -29,6 +29,14 @@ Python is dev tooling only (build script, Playwright tests).
   Segments: `PAI` primarily AI, `Se` stylistic edits, `Ce` content edits, `Nc` new content, `Hin`
   human-initiated, `R` reviewed by a human. Swap the interface, model or effort tier if a commit is made
   with a different one; keep the rest as issued. This is separate from the no-session-link rule above.
+  Commits here also end with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` (the harness
+  adds it, and the quest map lists it too).
+  For reference, the two projects this one borrows from word it differently. `many-game-show` uses the
+  AIA line above plus the two human trailers (`AIA_ATTRIBUTION.md`, `CLAUDE.md`). `the-quest-map-generator`
+  uses no AIA line: its commits end with the sentence "This work was substantially AI-generated with human
+  review and direction throughout.", the two human trailers and the Claude `Co-Authored-By`. This repo
+  follows `many-game-show` unless the user says otherwise. Both projects forbid session links in
+  commits, PR text and files, use Conventional Commits, and do not open a PR unless asked.
 
 ### Screenshots
 - The README shows screenshots from `docs/screenshots/`, made by `scripts/screenshots.py` (run
@@ -80,24 +88,44 @@ Borrowed from `the-quest-map-generator`:
 - `Makefile` targets `build`, `lint`, `test` (CI runs them as three separate steps), plus `setup`,
   `clean`. `lint` runs `deno lint` on `src/js`, an HTML check, and `ruff` on `scripts` and `tests`.
 - `pyproject.toml` dev extras: `playwright==1.63.0`, `pytest`, `pillow`, `ruff`, `deno`, `html5lib`.
-- Tests are Python Playwright. A session fixture serves `dist/` on a local port; each test page fails
-  on any JS `pageerror`. Screenshots and traces go to `test-artifacts/` (git-ignored).
+- Tests are Python Playwright. A session fixture serves `dist/` over HTTP from a throwaway local server
+  (like GitHub Pages does); each test page fails on any JS `pageerror`. Serving over HTTP matters:
+  over `file://` Chromium sometimes drops a `localStorage` write on a quick reload (about 6 in 100 under
+  load), which made the theme test flaky. `tests/test_from_disk.py` still opens the page as `file://` to
+  prove the single file works from disk. `make serve` serves `dist/` at http://127.0.0.1:8000 for a
+  person. Screenshots and traces go to `test-artifacts/` (git-ignored).
 - GitHub Actions: `ci.yml` (build, lint, test on Python 3.12; upload `test-artifacts` and `dist`; on
   push to `main`, deploy `dist` to GitHub Pages via the Pages actions, two jobs: artifact then deploy)
   and `release.yml` (on `v*` tags, rebuild, test, attach the single HTML file to a GitHub release).
   Pages must be set to "GitHub Actions" as the source in repo settings.
 
 ## Open items
-1. **Scaffold: done.** Build, lint, tests, CI, two demo drills, seven placeholder chibi icons, and a
-   day/night theme switch. There is deliberately no `make serve`: the page is one static file, so open
-   `dist/index.html` directly, and the tests load it as a `file://` URL. (An earlier attempt that
-   included a localhost URL was blocked by AI Guardian as `ssrf_blocked`.) Next: real art, more drills.
-2. **Session recorder: deferred by the user.** It would come from `the-quest-map-generator`
-   (`scripts/session_timing.py`, `scripts/session_log_header.md`, the pre-commit hook in
-   `scripts/hooks/`, `SESSION_LOG.md`, `make session-log`). The copy command was blocked by AI Guardian
-   (`tool_permission`, subreason `immutable_protection`, `viol_23534299`; the target was not named).
-   Do not retry it in another form; ask the user first. If it is ever added, redact secret-shaped
-   prompts in the log (the user chose redaction), because `SESSION_LOG.md` records the first 70
-   characters of every prompt.
-3. **Themes: done.** Six themes: day, night, plus stadium and field (from `many-board`) and stage and bright (from `many-game-show`, `big-tokens.html`). Only UI palettes were taken; grass, line and team colors are chosen here. The flagged `many-game-show` files (`UI_LOOK_AND_FEEL.md`, `static/index.html`) were not read.
-4. **AIA rules: done.** Taken from `many-game-show/AIA_ATTRIBUTION.md` and `CLAUDE.md`; the quest map `AGENTS.md` was never read (blocked, line 172).
+1. **Scaffold: done.** Build, lint, tests, CI, drills, placeholder chibi icons and a theme switch. The
+   page is one static file that opens straight from `dist/index.html`; `make serve` is there too, and the
+   tests use an HTTP server (see Tooling). (An early attempt that included a localhost URL was blocked by
+   AI Guardian as `ssrf_blocked`; it was off when `make serve` was added.) Next: real art, more drills.
+2. **Session recorder: done.** `scripts/session_timing.py` (adapted from `many-game-show`) writes
+   `session-logs/<session start, UTC>.md` from the session transcript under `~/.claude/projects/`:
+   per-turn agent time, human think time and tokens. `make session-log` runs it; `make hooks` (part of
+   `make setup`) sets `core.hooksPath` to `scripts/hooks`, whose `pre-commit` hook refreshes the log and
+   adds it to each commit, and skips quietly where there is no transcript (CI). The log is public, so
+   every prompt is cleaned (harness reminders dropped) and **redacted** (secret-shaped strings, emails,
+   Claude session links) before its first 70 characters are kept; keep that redaction and its tests in
+   place. One file per session, so a later session never overwrites an earlier one. The earlier copy
+   attempt was blocked by AI Guardian (`tool_permission`, subreason `immutable_protection`,
+   `viol_23534299`); this version was written here, not copied, at the user's request. If a call is
+   blocked again, report it and stop.
+3. **Themes: done.** Eight themes: day and night (ours), stadium and field (from `many-board`), stage and
+   bright (from `many-game-show`), and navy and gold (the default palettes of `many-board` and
+   `many-game-show`: navy/crimson and navy/gold). Only UI palettes are taken; grass, line, team and ball
+   colors are chosen here. All the theme files were read, including `many-game-show`'s
+   `UI_LOOK_AND_FEEL.md` and `static/index.html`. Their conventions, which this repo already follows:
+   the theme is a `data-theme` attribute on `<html>` set from a `<select>` in the header and kept in
+   `localStorage`; colors are CSS custom properties with per-theme overrides; a view with a strong look
+   may add a `[data-theme="x"]` override but must still work in every theme; colors that mean one thing
+   everywhere (for example correct green, wrong red) are hardcoded, not themed. Orbitron display
+   fonts are not used here.
+4. **AIA rules: done.** Read from both reference projects, including the quest map `AGENTS.md` (the
+   guard that blocked it earlier was off). They differ: see Rules. The AIA line comes from
+   `many-game-show`; the quest map uses a plain-language sentence instead. If the user wants this repo
+   to use the quest map's wording, only the commit footer in `Rules` and in past habits changes.

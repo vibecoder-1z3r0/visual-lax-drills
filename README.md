@@ -28,10 +28,10 @@ out, scoops one, rolls it back to the coach on the run and rejoins the line, all
 
 ## Themes
 
-Six themes, chosen from the Theme menu and remembered between visits. Here they are on the same
+Eight themes, chosen from the Theme menu and remembered between visits. Here they are on the same
 frame:
 
-![The six themes: day, night, stadium, stage, bright and field](docs/screenshots/themes.png)
+![The eight themes: day, night, stadium, stage, bright, navy, gold and field](docs/screenshots/themes.png)
 
 ## On a phone
 
@@ -51,12 +51,23 @@ make setup        # one time: virtualenv, dev tools, Playwright's Chromium
 make build        # src/ -> dist/index.html
 make lint         # deno lint, HTML check, ruff
 make test         # Playwright (Python) tests against dist/index.html
+make serve        # serve dist/ at http://127.0.0.1:8000 (it also opens straight from disk)
 make screenshots  # remake docs/screenshots/ for this README
 ```
 
 Tests write screenshots to `test-artifacts/`. Add a drill by adding data to `src/js/drills.js`; add
 or replace art by editing `src/icons/` (or dropping files in `icons-custom/`, which is git-ignored).
 See `AGENTS.md` for the plan and the rules for agents working in this repo.
+
+### Session log
+
+`make session-log` writes a turn-by-turn timing report for the current Claude Code session to
+`session-logs/<session start>.md`: how long the agent worked on each request, how long the human took
+to reply, and token use. Each prompt is cut to 70 characters after secret-shaped strings, emails and
+Claude session links are redacted. `make setup` (or `make hooks`) points git at `scripts/hooks`, whose
+`pre-commit` hook refreshes the log and adds it to every commit; it does nothing where there is no
+session transcript, such as CI. Each session writes its own file, so a later one never overwrites an
+earlier one. Don't edit the logs by hand.
 
 ### Keeping the screenshots current
 
