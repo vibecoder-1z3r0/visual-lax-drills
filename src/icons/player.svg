@@ -9,4 +9,9 @@
   <ellipse cx="-16" cy="14" rx="4" ry="2.4" fill="#ff8fa3" opacity="0.6"/>
   <ellipse cx="16" cy="14" rx="4" ry="2.4" fill="#ff8fa3" opacity="0.6"/>
   <path d="M-3 16 Q0 19.5 3 16" fill="none" stroke="#7a3b3b" stroke-width="1.8" stroke-linecap="round"/>
+  <!-- Lacrosse stick held at the right: shaft, then a head with a mesh pocket. -->
+  <path d="M13 32 L26 -3" fill="none" stroke="#2b2b3a" stroke-width="5.6" stroke-linecap="round"/>
+  <path d="M13 32 L26 -3" fill="none" stroke="#c98f4a" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M26 -3 C15 -6 15 -21 22 -29 L31 -26 C33 -15 33 -7 26 -3 Z" fill="#e9ecf4" stroke="#2b2b3a" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M19 -24 L30 -12 M18.5 -16 L28 -6.5 M23 -27 L32 -17" fill="none" stroke="#2b2b3a" stroke-width="0.9" opacity="0.55"/>
 </svg>

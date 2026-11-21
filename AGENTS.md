@@ -38,7 +38,7 @@ Python is dev tooling only (build script, Playwright tests).
 - **Scope first:** a generic half-field / zone layout. Other formats (men's, women's, box) come later.
 - **Playback:** full controls (play, pause, scrub, speed, step through keyframes, reset), with a
   caption per phase.
-- **Art style:** anime chibi, as inline SVG symbols in a sprite. Icons are centered on the origin
+- **Art style:** anime chibi, as inline SVG symbols in a sprite.  Players and the goalie hold a lacrosse stick (drawn inside the icon box at the right, so it is not clipped). Icons are centered on the origin
   (`viewBox="-32 -32 64 64"`): player (circle with a team-colored border), coach, goalie, net, crease,
   ball, bag of balls, and cones in several colors. More markings as drills need them.
 - **Themes:** drills should be themeable (CSS custom-property sets), in the spirit of the themes in the
