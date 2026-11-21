@@ -85,3 +85,13 @@ def test_captions_follow_time(page):
     page.evaluate("LAX.app.engine.seek(2.5)")
     assert page.locator("#caption").inner_text() == "A1 cuts hard toward the crease."
     assert first != page.locator("#caption").inner_text()
+
+
+def test_catch_and_throw_ball_travels_between_the_players(page):
+    drill = page.evaluate("LAX.DRILLS.find((d) => d.id === 'catch-and-throw')")
+    ball = next(a for a in drill["actors"] if a["id"] == "ball")["keys"]
+    track = page.evaluate
+    at = lambda t: track(f"LAX.trackAt({ball}, {t})")  # noqa: E731
+    start, mid, end = at(0), at(1.5), at(2.5)
+    assert start["x"] < mid["x"] < end["x"]  # thrown from A1 to A2
+    assert at(3.5)["x"] > at(4.5)["x"]  # and back again
