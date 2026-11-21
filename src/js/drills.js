@@ -91,7 +91,7 @@ export const DRILLS = [
   },
   {
     id: "odd-man",
-    title: "Odd man, offense/defense",
+    title: "Syracuse (odd man, offense/defense)",
     summary:
       "Like keep away, but whoever has the ball is on offense and takes any shot on net. The " +
       "team a player down defends goal side. After a goal a coach can throw in a new ball, call " +
@@ -100,7 +100,7 @@ export const DRILLS = [
     view: { x: 6, y: 7, w: 44, h: 42 },
     iconScale: 1.35,
     notes:
-      "Note: this one may also be called Syracuse. If the team a player down gets the ball, it is on offense, with no take back. Either coach can run the drill; here the coach at the cone calls the releases and the reset, and the coach in the field throws in new balls.",
+      "Note: also called odd man, offense/defense. If the team a player down gets the ball, it is on offense, with no take back. Either coach can run the drill; here the coach at the cone calls the releases and the reset, and the coach in the field throws in new balls.",
     midfieldLabel: false,
     markings: [
       { type: "rect", x: 15, y: 5, w: 30, h: 50 },

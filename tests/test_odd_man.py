@@ -33,8 +33,7 @@ def test_it_is_listed_after_keep_away_with_four_versions(page):
     assert ids[:3] == ["ground-ball-mania", "keep-away", "odd-man"]
     drill = page.evaluate("LAX.DRILLS.find((d) => d.id === 'odd-man')")
     assert [v["id"] for v in drill["variants"]] == list(VERSIONS)
-    assert drill["title"] == "Odd man, offense/defense"
-    assert "Syracuse" in drill["notes"]
+    assert drill["title"] == "Syracuse (odd man, offense/defense)"
 
 
 def test_the_generated_data_is_current():
