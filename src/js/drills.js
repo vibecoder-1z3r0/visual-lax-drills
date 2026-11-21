@@ -1,4 +1,5 @@
 import { KEEP_AWAY_VARIANTS } from "./keepaway_data.js";
+import { NIAGARA_VARIANTS } from "./niagara_data.js";
 import { ODD_MAN_VARIANTS } from "./oddman_data.js";
 
 // Drills are plain data. Coordinates are field yards (see constants.js). Every actor has a list of
@@ -109,6 +110,28 @@ export const DRILLS = [
       { type: "text", x: 41.5, y: 34.1, text: "20-yard line" },
     ],
     variants: ODD_MAN_VARIANTS.map(variantFrom),
+  },
+  {
+    id: "niagara",
+    title: "Niagara",
+    summary:
+      "The coach and cone are in the middle of the field, 35 yards back from the goal line " +
+      "extended, with the lines behind the 35 yard line (red west, blue east). Two from each team " +
+      "fight for a ground ball; the winners are on offense for the whole round and their next " +
+      "player pops out for a free pass, so it is 3 on 2. A coach releases the next two, or just a " +
+      "defender to make it even, until all five are out. A new ball goes free to the offensive " +
+      "player nearest the 35.",
+    // The goal at the top, the 35 yard line and the lines at the bottom.
+    view: { x: 8, y: 11, w: 44, h: 44 },
+    iconScale: 1.35,
+    notes:
+      "Note: the offense is never more than one player up, and the defense only ever gets to even strength (the goalie does not count). Either coach can run the drill; here the coach at the cone calls the releases, the new balls and the reset. A goalie is optional.",
+    midfieldLabel: false,
+    markings: [
+      { type: "line", x1: 8, y1: 50, x2: 52, y2: 50, dash: true },
+      { type: "text", x: 46.5, y: 49.1, text: "35-yard line" },
+    ],
+    variants: NIAGARA_VARIANTS.map(variantFrom),
   },
   {
     id: "two-man-shoot",

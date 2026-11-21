@@ -54,7 +54,7 @@ Python is dev tooling only (build script, Playwright tests).
 ## Decisions so far
 - **Scope first:** a generic half-field / zone layout. Other formats (men's, women's, box) come later.
 - **Drills so far:** ground ball mania (a line of four, one ball rolled out at a time, staggered; it is first in
-  the list, so it is the default), keep away (second), Syracuse, also called odd man offense/defense (third; id `odd-man`), two-man pass and shoot, cone weave, catch and throw. Tests and the
+  the list, so it is the default), keep away (second), Syracuse, also called odd man offense/defense (third; id `odd-man`), Niagara (fourth), two-man pass and shoot, cone weave, catch and throw. Tests and the
   screenshot script find drills by id, never by position, so the order can change.
 - **Playback:** full controls (play, pause, scrub, speed, step through keyframes, reset), with a
   caption per phase.
@@ -84,6 +84,17 @@ Python is dev tooling only (build script, Playwright tests).
   version has one, and only it has saves. Each round lists its `shots` (`goal`, `save` or `wide`) and what the coaches do after each
   (`new_ball`, `new_ball_release`, `reset`). The team a player down that gets the ball is on offense,
   no take back. Players keep out of the crease; everyone walks back to the lines on reset.
+- **Niagara** is generated too (`layout: "niagara"`, output `src/js/niagara_data.js`). The cone is on
+  the 35 yard line (y = 50, 35 yards back from the goal line extended at y = 15) in the middle, the
+  one coach just behind it, and the lines wait behind the 35 (red west, blue east); all coaches stay
+  behind the 35, so there is no coach in the field. Two from each team fight for a ground ball, the
+  winners are on offense for the whole round, and their next player pops out for a free pass (3 on 2).
+  Releases (`new_ball_release` for the next two, `new_ball_release_defense` for one defender) never
+  put the offense more than one up or the defense past even, up to 5 on 5; a goalie does not count.
+  After a goal a coach feeds a new ball to the offensive player nearest the coach; after a save or a
+  takeaway (`("takeaway", after, route)`, route `goalie`, `carry` or `coach`) the ball goes back to
+  the coach (the goalie throws it, the defense carries it to the 35, or passes it to the coach) and
+  then it is fed out ("Ball in!"). The goalie is optional (`goalie: false`).
 - **Seeds and takes:** a generated version has its default take inline and lists all its `seeds`.
   The other takes are generated files `src/takes/<drill>/<version>-<seed>.js` (committed, copied to
   `dist/takes/` by the build) that register themselves in `window.LAX_TAKES`; `src/js/takes.js` loads

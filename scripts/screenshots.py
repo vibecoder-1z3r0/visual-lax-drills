@@ -25,6 +25,7 @@ DRILL_SHOTS = [
     ("ground-ball-mania", 6.4),
     ("keep-away", 24.0),
     ("odd-man", 8.0),
+    ("niagara", 4.0),
     ("two-man-shoot", 2.6),
     ("cone-weave", 3.2),
     ("catch-and-throw", 1.6),
