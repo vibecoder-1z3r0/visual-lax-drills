@@ -74,7 +74,9 @@ export function buildField(svg) {
   });
   label.textContent = "toward midfield";
   svgEl(svg, "g", { id: "markings" });
-  return svgEl(svg, "g", { id: "actors" });
+  const actors = svgEl(svg, "g", { id: "actors" });
+  svgEl(svg, "g", { id: "speech" }); // speech bubbles, drawn over the actors
+  return actors;
 }
 
 // Extra lines and labels a drill draws on the field (yards): { type: "line", x1, y1, x2, y2, dash },
@@ -116,5 +118,58 @@ export function buildActors(layer, drill) {
 export function placeActors(groups, positions) {
   for (const [id, pos] of Object.entries(positions)) {
     groups[id].setAttribute("transform", `translate(${pos.x.toFixed(3)} ${pos.y.toFixed(3)})`);
+  }
+}
+
+// Speech bubbles. One bubble per speaker (an actor id that has `speech` items); it is empty and
+// hidden until `placeSpeech` finds something being said.
+export function buildSpeech(layer, drill) {
+  layer.replaceChildren();
+  const bubbles = {};
+  const speakers = new Set((drill.speech || []).map((s) => s.who));
+  for (const who of speakers) {
+    const g = svgEl(layer, "g", { class: "speech", "data-speaker": who, visibility: "hidden" });
+    const box = svgEl(g, "path", { class: "speech-box" });
+    const text = svgEl(g, "text", { class: "speech-text" });
+    bubbles[who] = { g, box, text };
+  }
+  return bubbles;
+}
+
+const SPEECH_FONT = 1.5; // yards, like everything on the field
+const SPEECH_PAD = 0.55;
+const SPEECH_TAIL = 0.7;
+
+// Puts each bubble above its speaker, keeps it inside the drill's view, and hides the quiet ones.
+export function placeSpeech(bubbles, said, positions, drill) {
+  const view = drill.view || { x: 0, y: 0, w: FIELD_W, h: FIELD_H };
+  for (const [who, bubble] of Object.entries(bubbles)) {
+    const item = said.find((s) => s.who === who);
+    const at = positions[who];
+    if (!item || !at) {
+      bubble.g.setAttribute("visibility", "hidden");
+      continue;
+    }
+    const actor = drill.actors.find((a) => a.id === who);
+    const lift = ((ICON_SIZE[actor.kind] || 1.8) * (drill.iconScale || 1)) / 2 + 0.2;
+    bubble.text.textContent = item.text;
+    const w = item.text.length * SPEECH_FONT * 0.6 + 2 * SPEECH_PAD;
+    const h = SPEECH_FONT + 2 * SPEECH_PAD;
+    // Centre the bubble over the speaker, but nudge it back into view.
+    const left = Math.min(Math.max(at.x - w / 2, view.x + 0.3), view.x + view.w - w - 0.3);
+    const top = at.y - lift - SPEECH_TAIL - h;
+    const tipX = Math.min(Math.max(at.x, left + 0.9), left + w - 0.9);
+    const r = 0.7;
+    bubble.box.setAttribute(
+      "d",
+      `M${left + r} ${top} H${left + w - r} Q${left + w} ${top} ${left + w} ${top + r} ` +
+        `V${top + h - r} Q${left + w} ${top + h} ${left + w - r} ${top + h} ` +
+        `H${tipX + 0.5} L${tipX} ${top + h + SPEECH_TAIL} L${tipX - 0.5} ${top + h} ` +
+        `H${left + r} Q${left} ${top + h} ${left} ${top + h - r} V${top + r} ` +
+        `Q${left} ${top} ${left + r} ${top} Z`,
+    );
+    bubble.text.setAttribute("x", String(left + w / 2));
+    bubble.text.setAttribute("y", String(top + h / 2));
+    bubble.g.setAttribute("visibility", "visible");
   }
 }

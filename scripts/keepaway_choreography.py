@@ -45,7 +45,7 @@ BALL_SPOT = (24.0, 36.2)  # where the coach's roll stops, about 9 yards from the
 ICON_SCALE = 1.35
 ICON = 1.8 * ICON_SCALE  # the width of a player icon, in yards
 POCKET = (0.375 * ICON, -0.25 * ICON)  # where the stick's pocket is, from the player's centre
-QUEUE_X = 15.9
+QUEUE_X = 14.0  # the lines wait just outside the sideline (x = 15); players run in from there
 SLOT = 2.5  # spacing of players waiting in line
 FIRST = 2.8  # the front player's distance from the cone
 ZONE = (17.8, 43.2, 24.0, 48.0)  # x0, x1, y0, y1: where the play happens
@@ -145,6 +145,7 @@ class Round:
             self.players[f"n{i + 1}"] = Player(f"n{i + 1}", "b", i)
         self.ball: list[tuple] = []
         self.captions: list[tuple[float, str]] = []
+        self.speech: list[tuple[float, float, str, str]] = []  # time, seconds shown, who, text
         self.carrier: Player | None = None
         self.on_ball: Player | None = None
         self.t = 0.0
@@ -166,6 +167,9 @@ class Round:
 
     def caption(self, t, text):
         self.captions.append((r2(t), text))
+
+    def say(self, t, seconds, who, text):
+        self.speech.append((r2(t), seconds, who, text))
 
     def key(self, p, t):
         p.keys.append((t, p.pos[0], p.pos[1]))
@@ -223,6 +227,7 @@ class Round:
             "Two teams line up on the west sideline: blue north of the cone, red south of it. "
             "The coach stands just behind the cone.",
         )
+        self.say(0.6, 1.8, "coach", "Ground ball!")
         self.caption(0.6, "The coach rolls a ball out, about 9 yards along the 20-yard line.")
         self.caption(
             1.0, "Two red players and one blue player, the ones closest to the cone, go for it."
@@ -637,6 +642,7 @@ class Round:
                     pid = self.queues[team].pop(0)
                     self.players[pid].playing = True
                     joiners.append(pid)
+            self.say(t, 1.6, "coach", "Release!")
             self.caption(
                 t,
                 "The coach blows the whistle once: release! The next player from each team joins.",
@@ -651,6 +657,7 @@ class Round:
             self.counting = True
             for i, n in enumerate(range(5, 0, -1)):
                 self.caption(count + i, f"The coach counts down: {n}")
+                self.say(count + i, 0.9, "coach", f"{n}")
 
     def finish_step(self, ball_keys):
         # a pass still in the air when this step starts supersedes the carry key for this step
@@ -684,6 +691,7 @@ class Round:
             self.caption(
                 end_t, "Time! Nobody has the ball, so nobody wins the round. The coach calls reset."
             )
+        self.say(end_t, 1.6, "coach", "Reset!")
         hold_t = end_t + 1.5
         for p in self.players.values():
             if p.playing:
@@ -768,6 +776,7 @@ class Round:
             "duration": r2(self.duration),
             "actors": actors,
             "captions": [[t, text] for t, text in caps],
+            "speech": [list(item) for item in sorted(self.speech)],
         }
 
 
@@ -779,7 +788,7 @@ ROUNDS = [
             "Red wins the ground ball and keeps it away through three releases, up to 5 on 4. "
             "Blue defends a player down. The coach counts down and the team with the ball wins."
         ),
-        "seed": 7,
+        "seed": 29,
         "hold": 2,
         "gb_winner": "S",
         "releases": [12.9, 22.9, 31.9],
@@ -793,7 +802,7 @@ ROUNDS = [
             "Blue, the team with fewer players, wins the ground ball and has to keep it away from "
             "two, then three, then four red defenders."
         ),
-        "seed": 48,
+        "seed": 8,
         "gb_winner": "N",
         "releases": [12.9, 23.9, 32.9],
         "count_start": 41.9,
@@ -806,7 +815,7 @@ ROUNDS = [
             "Red wins the ground ball, but blue pokes it away and takes it. Now blue keeps it "
             "away and wins the round."
         ),
-        "seed": 53,
+        "seed": 23,
         "gb_winner": "S",
         "turnover": 16.9,
         "releases": [11.9, 24.9, 33.9],
@@ -819,7 +828,7 @@ ROUNDS = [
             "Red keeps the ball until a pass is dropped during the countdown. Nobody has the ball "
             "at the end, so nobody wins."
         ),
-        "seed": 76,
+        "seed": 3,
         "gb_winner": "S",
         "releases": [12.9, 22.9, 31.9],
         "drop_at": 43.9,
@@ -853,6 +862,7 @@ def render() -> str:
             )
         lines.append("    ],")
         lines.append("    captions: " + json.dumps(r["captions"], ensure_ascii=False) + ",")
+        lines.append("    speech: " + json.dumps(r["speech"], ensure_ascii=False) + ",")
         lines.append("  },")
     lines.append("];")
     return "\n".join(lines) + "\n"

@@ -72,6 +72,7 @@ export const DRILLS = [
       duration: v.duration,
       actors: v.actors.map((a) => ({ ...a, keys: toKeys(a.keys) })),
       captions: v.captions.map(([t, text]) => ({ t, text })),
+      speech: v.speech.map(([t, dur, who, text]) => ({ t, dur, who, text })),
     })),
   },
   {

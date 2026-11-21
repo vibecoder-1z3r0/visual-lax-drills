@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # The playing area: 30 yards from the west sideline, 10 north to 40 south of the goal line.
 BOX = {"x0": 15, "x1": 45, "y0": 5, "y1": 55}
+SIDELINE = 15  # the lines wait just outside it
 VERSIONS = (
     "keep-away",
     "blue-wins-ground-ball",
@@ -99,8 +100,17 @@ def test_every_version_stays_in_bounds_and_nobody_runs_faster_than_a_sprint(page
         assert len(players) == 10
         for actor in players:
             keys = actor["keys"]
+            # Waiting in line is out of bounds (west of the sideline); once playing, in bounds.
+            assert keys[0]["x"] < SIDELINE, (index, actor["id"])
+            playing = [k for k in keys if k["x"] >= SIDELINE]
+            # (the last player in a line never gets released: 5 against 4 is the most)
+            if playing:
+                assert all(k["x"] >= SIDELINE for k in keys[keys.index(playing[0]) :]), (
+                    index,
+                    actor["id"],
+                )
             for key in keys:
-                assert BOX["x0"] <= key["x"] <= BOX["x1"] + 1e-6, (index, actor["id"], key)
+                assert BOX["x0"] - 2 <= key["x"] <= BOX["x1"] + 1e-6, (index, actor["id"], key)
                 assert BOX["y0"] <= key["y"] <= BOX["y1"] + 1e-6, (index, actor["id"], key)
             for a, b in zip(keys, keys[1:], strict=False):
                 speed = ((b["x"] - a["x"]) ** 2 + (b["y"] - a["y"]) ** 2) ** 0.5 / (b["t"] - a["t"])
@@ -137,3 +147,31 @@ def test_every_version_has_a_start_a_release_a_countdown_and_an_end(page):
         assert "5" in text and "1" in text, index  # the countdown
         assert drill["captions"][0]["t"] == 0
         assert drill["duration"] >= 40
+
+
+def test_the_coach_says_release_with_a_speech_bubble(page):
+    choose_drill(page, "keep-away")
+    drill = keep_away(page)
+    says = [(s["t"], s["text"]) for s in drill["speech"]]
+    releases = [t for t, text in says if text == "Release!"]
+    assert len(releases) == 3
+    assert [text for _, text in says if text.isdigit()] == ["5", "4", "3", "2", "1"]
+    assert says[-1][1] == "Reset!"
+    page.evaluate(f"LAX.app.engine.seek({releases[0] + 0.3})")
+    bubble = page.locator('.speech[data-speaker="coach"]')
+    assert bubble.get_attribute("visibility") == "visible"
+    assert "Release!" in bubble.text_content()
+    page.evaluate("LAX.app.engine.seek(3.5)")  # nobody is talking
+    assert bubble.get_attribute("visibility") == "hidden"
+
+
+def test_a_speech_bubble_stays_inside_the_view(page):
+    choose_drill(page, "keep-away")
+    drill = keep_away(page)
+    view = drill["view"]
+    for item in drill["speech"]:
+        page.evaluate(f"LAX.app.engine.seek({item['t'] + 0.2})")
+        box = page.locator('.speech[data-speaker="coach"] .speech-box').bounding_box()
+        svg = page.locator("#field").bounding_box()
+        assert box["x"] >= svg["x"] - 1 and box["x"] + box["width"] <= svg["x"] + svg["width"] + 1
+        assert box["y"] >= svg["y"] - 1, (item, view)

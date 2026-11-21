@@ -17,6 +17,12 @@ export function trackAt(keys, t) {
   return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u };
 }
 
+// What the characters are saying at time t: the drill's `speech` items { t, dur, who, text } whose
+// time span includes t. `who` is an actor id; the page draws a speech bubble above that actor.
+export function speechAt(speech, t) {
+  return (speech || []).filter((s) => s.t <= t && t < s.t + s.dur);
+}
+
 // A drill can have several choreographed versions ("variants"); the first is the default. Each
 // variant gives its own actors, captions and duration (and optionally its own summary); everything
 // else (title, view, flags, markings) comes from the drill. Returns a plain drill the engine can play.
@@ -27,6 +33,7 @@ export function resolveDrill(drill, variantIndex = 0) {
     ...drill,
     actors: variant.actors,
     captions: variant.captions,
+    speech: variant.speech,
     duration: variant.duration,
     summary: variant.summary || drill.summary,
     variantId: variant.id,
@@ -64,6 +71,9 @@ export function createEngine(drill) {
     },
     caption() {
       return captionAt(drill.captions, engine.t);
+    },
+    speech() {
+      return speechAt(drill.speech, engine.t);
     },
     seek(t) {
       engine.t = Math.min(Math.max(t, 0), drill.duration);

@@ -1,16 +1,33 @@
 import { SPEEDS, THEME_KEY, THEMES } from "./constants.js";
 import { DRILLS } from "./drills.js";
 import { createEngine, resolveDrill } from "./engine.js";
-import { buildActors, buildField, placeActors, renderMarkings, viewBoxFor } from "./render.js";
+import {
+  buildActors,
+  buildField,
+  buildSpeech,
+  placeActors,
+  placeSpeech,
+  renderMarkings,
+  viewBoxFor,
+} from "./render.js";
 
-export const app = { engine: null, drillIndex: 0, variantIndex: 0, layer: null, actors: null };
+export const app = {
+  engine: null,
+  drillIndex: 0,
+  variantIndex: 0,
+  layer: null,
+  actors: null,
+  speech: {},
+};
 
 function $(id) {
   return document.getElementById(id);
 }
 
 function refresh(engine) {
-  placeActors(app.actors, engine.positions());
+  const positions = engine.positions();
+  placeActors(app.actors, positions);
+  placeSpeech(app.speech, engine.speech(), positions, engine.drill);
   $("time").textContent = `${engine.t.toFixed(1)} / ${engine.drill.duration.toFixed(1)} s`;
   $("scrub").value = String(Math.round(engine.t * 100));
   $("caption").textContent = engine.caption();
@@ -54,6 +71,7 @@ export function loadDrill(index, variantIndex = 0) {
   const label = document.getElementById("midfield-label");
   if (label) label.style.display = drill.midfieldLabel === false ? "none" : "";
   app.actors = buildActors(app.layer, drill);
+  app.speech = buildSpeech($("speech"), drill);
   $("title").textContent = drill.title;
   $("summary").textContent = drill.summary;
   $("scrub").max = String(Math.round(drill.duration * 100));
