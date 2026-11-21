@@ -57,6 +57,7 @@ V_CAP = 6.4  # nobody is ever faster than this
 SAME_MIN, OPP_MIN, COACH_MIN = 2.7, 1.5, 2.6  # clearances between players (centres)
 ENDS_FACTOR = 0.8  # between steps a pair may be this much closer than the step limits
 MAX_FLIGHT = 15.0  # longest pass, yards
+MIN_FLIGHT = 2.6  # shortest pass, yards
 
 
 def dist(a, b):
@@ -147,6 +148,8 @@ class Round:
         self.on_ball: Player | None = None
         self.t = 0.0
         self.hold = 0
+        self.pass_times = []
+        self.arrives = 0.0  # when the ball in flight reaches its receiver
         self.last_passer: Player | None = None
         self.queues = {"a": [], "b": []}
 
@@ -437,24 +440,28 @@ class Round:
             receiver = max(
                 offence, key=lambda q: min((dist(q.pos, d.pos) for d in defence), default=9)
             )
-            tau = max(0.5, dist(carrier.pos, receiver.pos) / 15.0)
+            tau = min(1.0, max(0.5, dist(carrier.pos, receiver.pos) / 15.0))
             at = self.pos_at(receiver, nxt, tau)
             far = self.loose_target(at, defence + offence)
-            keys.append((t + tau * 0.6,) + self.ball_xy_at(at) + (0,))
+            keys.append(
+                (t + tau * 0.6,) + self.ball_xy_at(self.pos_at(receiver, nxt, tau * 0.6)) + (0,)
+            )
             keys.append((t + tau + 0.5, far[0], far[1], 1))
             self.loose_spot = far
             self.carrier = None
             self.caption(t, "The pass is dropped. The ball is loose.")
             return keys
         want = 2 if len(in_play) <= 4 else spec.get("hold", 3)
-        if self.hold >= want and offence:
+        if self.hold >= want and offence and t >= self.arrives - 1e-9:
             choice = self.pick_receiver(t, carrier, offence, defence, nxt)
-            if choice:
+            if choice and t + choice[1] <= self.spec["count_start"] + 5.0 - 0.05:
                 receiver, tau = choice
                 at = self.pos_at(receiver, nxt, tau)
                 keys.append((t + tau,) + self.ball_xy_at(at) + (0,))
                 self.last_passer = carrier
                 self.carrier = receiver
+                self.pass_times.append(round(t, 1))
+                self.arrives = t + tau
                 self.hold = 0
         return keys
 
@@ -473,14 +480,22 @@ class Round:
         return best
 
     def pick_receiver(self, t, carrier, offence, defence, nxt):
+        # Prefer a clearly open teammate; if nobody is, settle for a smaller window (a real pass).
+        for lane_min, open_min in ((1.9, 2.4), (1.5, 1.9), (1.2, 1.5)):
+            choice = self.best_receiver(carrier, offence, defence, nxt, lane_min, open_min)
+            if choice:
+                return choice
+        return None
+
+    def best_receiver(self, carrier, offence, defence, nxt, lane_min, open_min):
         best, best_score = None, -1e9
         for r in offence:
             d0 = dist(carrier.pos, r.pos)
-            tau = max(0.45, d0 / 15.0)
+            tau = min(1.0, max(0.45, d0 / 15.0))
             at = self.pos_at(r, nxt, tau)
             start = self.pos_at(carrier, nxt, 0.0)
             length = dist(pocket_of(start), pocket_of(at))
-            if not 3.0 <= length <= MAX_FLIGHT:
+            if not MIN_FLIGHT <= length <= MAX_FLIGHT:
                 continue
             lane = min(
                 (
@@ -490,7 +505,7 @@ class Round:
                 default=9.0,
             )
             open_d = min((dist(at, self.pos_at(d, nxt, tau)) for d in defence), default=9.0)
-            if lane < 1.9 or open_d < 2.4:
+            if lane < lane_min or open_d < open_min:
                 continue
             score = (
                 lane + open_d - (1.5 if r is self.last_passer else 0.0) + self.rng.uniform(0, 0.8)
@@ -607,7 +622,10 @@ class Round:
                 self.caption(count + i, f"The coach counts down: {n}")
 
     def finish_step(self, ball_keys):
-        self.ball.extend(ball_keys)
+        # a pass still in the air when this step starts supersedes the carry key for this step
+        for key in ball_keys:
+            if not self.ball or key[0] > self.ball[-1][0] + 1e-9:
+                self.ball.append(key)
 
     def run(self):
         self.released = 0
@@ -726,25 +744,28 @@ ROUNDS = [
             "Red wins the ground ball and keeps it away through three releases, up to 5 on 4. "
             "Blue defends a player down. The coach counts down and the team with the ball wins."
         ),
-        "seed": 11,
+        "seed": 7,
+        "hold": 2,
         "gb_winner": "S",
         "releases": [12.9, 22.9, 31.9],
         "count_start": 40.9,
     },
     {
         "id": "blue-wins-ground-ball",
+        "hold": 2,
         "name": "Blue wins the ground ball",
         "summary": (
             "Blue, the team with fewer players, wins the ground ball and has to keep it away from "
             "two, then three, then four red defenders."
         ),
-        "seed": 23,
+        "seed": 1,
         "gb_winner": "N",
         "releases": [12.9, 23.9, 32.9],
         "count_start": 41.9,
     },
     {
         "id": "blue-takes-it-away",
+        "hold": 2,
         "name": "Blue takes the ball away",
         "summary": (
             "Red wins the ground ball, but blue pokes it away and takes it. Now blue keeps it "
