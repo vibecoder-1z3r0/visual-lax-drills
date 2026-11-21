@@ -37,7 +37,8 @@ WEST, EAST, NORTH, SOUTH = 15.0, 45.0, 5.0, 55.0
 LINE_Y = 35.0
 CONE = (15.2, LINE_Y)
 COACH = (13.3, LINE_Y)
-COACH2 = (37.5, 40.0)
+COACH2 = (37.5, 40.0)  # where the coach in the field starts and drifts back to
+V_COACH = 3.0  # the field coach steps aside at a brisk walk, yards a second
 BALL_START = (14.5, 35.5)
 BALL_SPOT = (24.0, 36.2)  # where the coach's roll stops, about 9 yards from the cone
 
@@ -149,6 +150,9 @@ class Round:
         self.t = 0.0
         self.hold = 0
         self.pass_times = []
+        self.c_cur = COACH2
+        self.c_nxt = COACH2
+        self.coach_keys = [(0.0, COACH2[0], COACH2[1])]
         self.arrives = 0.0  # when the ball in flight reaches its receiver
         self.last_passer: Player | None = None
         self.queues = {"a": [], "b": []}
@@ -236,6 +240,7 @@ class Round:
         t = self.t
         self.handle_events(t)
         in_play = self.playing()
+        self.move_coach(in_play)
         carrier = self.carrier
         loose = carrier is None
         nxt: dict[str, tuple[float, float]] = {}
@@ -281,8 +286,34 @@ class Round:
             p = self.players[pid]
             p.pos = pos
             self.key(p, t + DT)
+        self.c_cur = self.c_nxt
         self.t = t + DT
         self.finish_step(ball_keys)
+
+    def move_coach(self, in_play):
+        """The coach in the field steps out of the players' way, then drifts back toward home."""
+        cur = self.c_cur
+        ahead = [(q.pos, add(q.pos, q.heading, V_RUN * 0.8)) for q in in_play]
+
+        def clearance(c):
+            return min((min(dist(c, a), dist(c, b)) for a, b in ahead), default=9.0)
+
+        best, best_score = cur, -1e9
+        candidates = [cur]
+        for radius in (V_COACH * 0.5, V_COACH):
+            for k in range(16):
+                ang = k * math.pi / 8
+                candidates.append(
+                    (cur[0] + radius * math.cos(ang), cur[1] + radius * math.sin(ang))
+                )
+        for c in candidates:
+            if not (19.0 <= c[0] <= 43.8 and 13.5 <= c[1] <= 48.5):
+                continue
+            score = min(clearance(c), 7.0) - 0.12 * dist(c, COACH2) - 0.25 * dist(c, cur)
+            if score > best_score:
+                best, best_score = c, score
+        self.c_nxt = best
+        self.coach_keys.append((self.t + DT, best[0], best[1]))
 
     def ball_xy(self, p):
         q = pocket_of(p.pos)
@@ -343,7 +374,7 @@ class Round:
             )
             edge = min(c[0] - ZONE[0], ZONE[1] - c[0], c[1] - ZONE[2], ZONE[3] - c[1])
             score -= 1.5 * max(0.0, 2.0 - edge)
-            score -= 1.2 * max(0.0, 3.0 - dist(c, COACH2))
+            score -= 1.2 * max(0.0, 3.0 - dist(c, self.c_nxt))
             score += self.rng.uniform(0.0, 0.6)
             if score > best_score:
                 best, best_score = c, score
@@ -536,9 +567,9 @@ class Round:
             for p in everyone:
                 if self.is_waiting(p):
                     continue
-                d = dist(nxt[p.id], COACH2)
+                d = dist(nxt[p.id], self.c_nxt)
                 if d < COACH_MIN:
-                    nxt[p.id] = add(COACH2, unit(sub(nxt[p.id], COACH2)), COACH_MIN)
+                    nxt[p.id] = add(self.c_nxt, unit(sub(nxt[p.id], self.c_nxt)), COACH_MIN)
                     moved = True
                 nxt[p.id] = clamp_zone(nxt[p.id]) if p.playing else nxt[p.id]
                 # nobody is faster than a player can be
@@ -563,12 +594,12 @@ class Round:
             for q in people:
                 if self.is_waiting(q):
                     continue
-                gap = seg_dist(COACH2, q.pos, nxt[q.id])
+                gap = min_gap(self.c_cur, self.c_nxt, q.pos, nxt[q.id])
                 if gap < COACH_MIN * ENDS_FACTOR:
                     # swing the end of the path to the side of the coach the player started on
                     run = sub(nxt[q.id], q.pos)
                     side = unit((-run[1], run[0]))
-                    to_coach = sub(COACH2, q.pos)
+                    to_coach = sub(self.c_nxt, q.pos)
                     if side[0] * to_coach[0] + side[1] * to_coach[1] > 0:
                         side = (-side[0], -side[1])
                     nxt[q.id] = add(nxt[q.id], side, COACH_MIN * ENDS_FACTOR - gap + 0.5)
@@ -664,7 +695,10 @@ class Round:
 
     # ---- checks and output -------------------------------------------------------------
     def interp(self, p, t):
-        keys = p.keys
+        return self.interp_keys(p.keys, t)
+
+    @staticmethod
+    def interp_keys(keys, t):
         if t <= keys[0][0]:
             return (keys[0][1], keys[0][2])
         for a, b in zip(keys, keys[1:], strict=False):
@@ -686,8 +720,9 @@ class Round:
                         f"{name}: {a.id} and {b.id} too close at {t:.1f}s "
                         f"({dist(pos[a.id], pos[b.id]):.2f})"
                     )
+            coach_now = self.interp_keys(self.coach_keys, t)
             for pid, q in pos.items():
-                if self.players[pid].playing and dist(q, COACH2) < COACH_MIN * 0.7:
+                if self.players[pid].playing and dist(q, coach_now) < COACH_MIN * 0.7:
                     raise SystemExit(f"{name}: {pid} too close to the coach at {t:.1f}s")
         for p in self.players.values():
             for a, b in zip(p.keys, p.keys[1:], strict=False):
@@ -712,7 +747,7 @@ class Round:
 
         actors = [
             {"id": "coach", "kind": "coach", "team": "none", "keys": [[0, COACH[0], COACH[1]]]},
-            {"id": "coach2", "kind": "coach", "team": "none", "keys": [[0, COACH2[0], COACH2[1]]]},
+            {"id": "coach2", "kind": "coach", "team": "none", "keys": keys(self.coach_keys)},
             {
                 "id": "cone",
                 "kind": "cone",
@@ -758,7 +793,7 @@ ROUNDS = [
             "Blue, the team with fewer players, wins the ground ball and has to keep it away from "
             "two, then three, then four red defenders."
         ),
-        "seed": 1,
+        "seed": 48,
         "gb_winner": "N",
         "releases": [12.9, 23.9, 32.9],
         "count_start": 41.9,
@@ -771,7 +806,7 @@ ROUNDS = [
             "Red wins the ground ball, but blue pokes it away and takes it. Now blue keeps it "
             "away and wins the round."
         ),
-        "seed": 37,
+        "seed": 53,
         "gb_winner": "S",
         "turnover": 16.9,
         "releases": [11.9, 24.9, 33.9],
@@ -784,7 +819,7 @@ ROUNDS = [
             "Red keeps the ball until a pass is dropped during the countdown. Nobody has the ball "
             "at the end, so nobody wins."
         ),
-        "seed": 51,
+        "seed": 76,
         "gb_winner": "S",
         "releases": [12.9, 22.9, 31.9],
         "drop_at": 43.9,
