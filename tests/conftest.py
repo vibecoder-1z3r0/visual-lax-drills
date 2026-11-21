@@ -46,3 +46,10 @@ def page(context, site) -> Page:
     pg.wait_for_function("window.LAX !== undefined")
     yield pg
     assert pg.errors == [], pg.errors
+
+
+def choose_drill(page: Page, drill_id: str) -> None:
+    """Switch the page to a drill by id, so tests do not depend on the order of the list."""
+    index = page.evaluate(f"LAX.DRILLS.findIndex((d) => d.id === '{drill_id}')")
+    assert index >= 0, drill_id
+    page.select_option("#drill", str(index))

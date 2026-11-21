@@ -16,10 +16,10 @@ out, scoops one, rolls it back to the coach on the run and rejoins the line, all
 
 | Drill | What it shows |
 |---|---|
+| Ground ball mania (the default) | A line of four scoops balls rolled out by the coach, one after another. |
 | Two-man pass and shoot | Attackers swing the ball across the top, one cuts to the crease and finishes. |
 | Cone weave and finish | Carry the ball through four cones, then shoot from the top of the crease. |
 | Catch and throw | Two players twelve yards apart pass the ball back and forth. |
-| Ground ball mania | A line of four scoops balls rolled out by the coach, one after another. |
 
 | | |
 |---|---|

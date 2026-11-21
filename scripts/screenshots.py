@@ -20,15 +20,15 @@ DIST = ROOT / "dist" / "index.html"
 OUT = ROOT / "docs" / "screenshots"
 HASH_FILE = OUT / "SOURCE_HASH"
 
-# name, drill index, time in seconds (a moment with something happening), what it shows
+# drill id (also the file name), time in seconds (a moment with something happening)
 DRILL_SHOTS = [
-    ("ground-ball-mania", 3, 6.4),
-    ("two-man-shoot", 0, 2.6),
-    ("cone-weave", 1, 3.2),
-    ("catch-and-throw", 2, 1.6),
+    ("ground-ball-mania", 6.4),
+    ("two-man-shoot", 2.6),
+    ("cone-weave", 3.2),
+    ("catch-and-throw", 1.6),
 ]
 THEMES = ["day", "night", "stadium", "stage", "bright", "field"]
-THEME_SHOT_DRILL = (3, 6.4)  # ground ball mania
+THEME_SHOT_DRILL = ("ground-ball-mania", 6.4)
 DESKTOP = {"width": 1100, "height": 700}
 PHONE = {"width": 390, "height": 760}
 
@@ -52,7 +52,7 @@ def source_hash() -> str:
 
 
 def expected_files() -> list[Path]:
-    names = [f"{name}.png" for name, _, _ in DRILL_SHOTS] + ["themes.png", "phone.png"]
+    names = [f"{name}.png" for name, _ in DRILL_SHOTS] + ["themes.png", "phone.png"]
     return [OUT / n for n in names]
 
 
@@ -68,9 +68,10 @@ def is_current() -> tuple[bool, str]:
     return True, ""
 
 
-def prepare(page, drill: int, t: float, theme: str = "day") -> None:
+def prepare(page, drill_id: str, t: float, theme: str = "day") -> None:
     page.select_option("#theme", theme)
-    page.select_option("#drill", str(drill))
+    index = page.evaluate(f"LAX.DRILLS.findIndex((d) => d.id === '{drill_id}')")
+    page.select_option("#drill", str(index))
     page.evaluate(f"LAX.app.engine.seek({t})")
     # The version label shows the commit, which would make every screenshot differ.
     page.add_style_tag(content=".ver { visibility: hidden; }")
@@ -90,8 +91,8 @@ def make() -> None:
         page = context.new_page()
         page.goto(DIST.as_uri())
         page.wait_for_function("window.LAX !== undefined")
-        for name, drill, t in DRILL_SHOTS:
-            prepare(page, drill, t)
+        for name, t in DRILL_SHOTS:
+            prepare(page, name, t)
             page.screenshot(path=str(OUT / f"{name}.png"))
 
         # All six themes on the same frame, in one picture.
@@ -121,7 +122,7 @@ def make() -> None:
         phone = browser.new_context(viewport=PHONE, device_scale_factor=2).new_page()
         phone.goto(DIST.as_uri())
         phone.wait_for_function("window.LAX !== undefined")
-        prepare(phone, 3, 6.4)
+        prepare(phone, "ground-ball-mania", 6.4)
         phone.screenshot(path=str(OUT / "phone.png"), full_page=True)
         browser.close()
     HASH_FILE.write_text(source_hash() + "\n")

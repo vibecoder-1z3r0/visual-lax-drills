@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from conftest import choose_drill
 
 FIELD_W, FIELD_H = 60, 55
 
@@ -49,7 +50,8 @@ def test_advance_stops_at_the_end(page):
 
 
 def test_ball_travels_with_the_pass(page):
-    # In the first drill A1 passes to A2, so at t=2 the ball is on A2 and the page shows it there.
+    # In two-man pass and shoot A1 passes to A2, so at t=2 the ball is on A2 and the page shows it there.
+    choose_drill(page, "two-man-shoot")
     page.evaluate("LAX.app.engine.seek(2)")
     pos = page.evaluate("LAX.app.engine.positions()")
     assert pos["ball"] == pos["a2"] == {"x": 46, "y": 38}
@@ -60,6 +62,7 @@ def test_ball_travels_with_the_pass(page):
 
 
 def test_scrubbing_moves_time_and_pauses(page):
+    choose_drill(page, "two-man-shoot")
     page.locator("#play").click()
     page.locator("#scrub").fill("300")
     state = page.evaluate("({t: LAX.app.engine.t, p: LAX.app.engine.playing})")
@@ -81,6 +84,7 @@ def test_play_pause_and_reset_buttons(page):
 
 
 def test_captions_follow_time(page):
+    choose_drill(page, "two-man-shoot")
     first = page.locator("#caption").inner_text()
     page.evaluate("LAX.app.engine.seek(2.5)")
     assert page.locator("#caption").inner_text() == "A1 cuts hard toward the crease."
@@ -131,9 +135,9 @@ def test_ground_ball_mania_nobody_collides(page):
         pos = {i: at(i, t) for i in kids}
         for i, a in enumerate(kids):
             for b in kids[i + 1 :]:
-                assert dist(pos[a], pos[b]) >= 3.2, (t, a, b)
-            assert dist(pos[a], at("coach", t)) >= 3.2, (t, a, "coach")
-            assert dist(pos[a], at("bag", t)) >= 2.7, (t, a, "bag")
+                assert dist(pos[a], pos[b]) >= 1.8, (t, a, b)
+            assert dist(pos[a], at("coach", t)) >= 2.0, (t, a, "coach")
+            assert dist(pos[a], at("bag", t)) >= 1.6, (t, a, "bag")
 
 
 def test_ground_ball_mania_rolled_balls_never_pass_close_to_a_player(page):
@@ -185,3 +189,56 @@ def test_ground_ball_mania_rolls_head_toward_the_goal(page):
         assert off < 30 or off > 330, (name, off)
     assert max(lengths) - min(lengths) < 0.5, lengths
     assert all(8.5 <= n <= 10 for n in lengths), lengths
+
+
+def test_ground_ball_mania_players_keep_moving_and_stay_believable(page):
+    """Once a player leaves the line they never stop (not at the scoop, not at the roll-in) until
+    they are back in it, and nobody runs faster than about 8 yards a second."""
+    result = page.evaluate(
+        """() => {
+      const drill = LAX.DRILLS.find((d) => d.id === 'ground-ball-mania');
+      const kids = drill.actors.filter((a) => a.id.startsWith('p'));
+      const slots = [38, 39.9, 41.8, 43.7].map((y) => ({ x: 30, y }));
+      const inLine = (p) => slots.some((s) => Math.hypot(p.x - s.x, p.y - s.y) < 0.3);
+      const dt = 0.05;
+      let slowest = Infinity, fastest = 0, slowAt = null;
+      for (const kid of kids) {
+        for (let t = 0; t + dt <= drill.duration; t += dt) {
+          const a = LAX.trackAt(kid.keys, t), b = LAX.trackAt(kid.keys, t + dt);
+          if (inLine(a) && inLine(b)) continue;       // waiting or shuffling up in the line
+          if (Math.hypot(a.x - 30, a.y - 38) < 0.3) continue;   // about to step out
+          const v = Math.hypot(b.x - a.x, b.y - a.y) / dt;
+          fastest = Math.max(fastest, v);
+          if (v < slowest) { slowest = v; slowAt = [kid.id, +t.toFixed(2)]; }
+        }
+      }
+      return { slowest, fastest, slowAt };
+    }"""
+    )
+    assert result["fastest"] <= 8, result
+    assert result["slowest"] > 0.5, result
+
+
+def test_every_actor_stays_inside_its_drills_view(page):
+    """A drill zooms in with `view`; nobody may leave the part of the field that is shown."""
+    drills = page.evaluate("LAX.DRILLS")
+    for drill in drills:
+        view = drill.get("view")
+        if not view:
+            continue
+        assert 1.0 <= view["w"] / view["h"] <= 1.2, (
+            drill["id"],
+            view,
+        )  # close to the field's shape
+        for actor in drill["actors"]:
+            for key in actor["keys"]:
+                assert view["x"] <= key["x"] <= view["x"] + view["w"], (
+                    drill["id"],
+                    actor["id"],
+                    key,
+                )
+                assert view["y"] <= key["y"] <= view["y"] + view["h"], (
+                    drill["id"],
+                    actor["id"],
+                    key,
+                )

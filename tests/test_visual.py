@@ -14,6 +14,8 @@ def shot(page, name: str) -> Image.Image:
 def test_frames_are_captured_and_change_over_time(page):
     """Saves frames to test-artifacts/ for a human to look at, and checks the drill really moves."""
     frames = {}
+    index = page.evaluate("LAX.DRILLS.findIndex((d) => d.id === 'two-man-shoot')")
+    page.select_option("#drill", str(index))
     for t in (0, 2, 5):
         page.evaluate(f"LAX.app.engine.seek({t})")
         frames[t] = shot(page, f"two-man-shoot-t{t}")
