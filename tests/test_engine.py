@@ -213,3 +213,28 @@ def test_ground_ball_mania_players_keep_moving_and_stay_believable(page):
     )
     assert result["fastest"] <= 8, result
     assert result["slowest"] > 0.5, result
+
+
+def test_every_actor_stays_inside_its_drills_view(page):
+    """A drill zooms in with `view`; nobody may leave the part of the field that is shown."""
+    drills = page.evaluate("LAX.DRILLS")
+    for drill in drills:
+        view = drill.get("view")
+        if not view:
+            continue
+        assert 1.0 <= view["w"] / view["h"] <= 1.2, (
+            drill["id"],
+            view,
+        )  # close to the field's shape
+        for actor in drill["actors"]:
+            for key in actor["keys"]:
+                assert view["x"] <= key["x"] <= view["x"] + view["w"], (
+                    drill["id"],
+                    actor["id"],
+                    key,
+                )
+                assert view["y"] <= key["y"] <= view["y"] + view["h"], (
+                    drill["id"],
+                    actor["id"],
+                    key,
+                )

@@ -61,7 +61,10 @@ Python is dev tooling only (build script, Playwright tests).
 - JS modules share one flat scope after bundling, so top-level names must be unique. Order is defined
   in `JS_ORDER` in the build script.
 - **Field:** real lacrosse dimensions in one coordinate system (yards), so every drill is plain data
-  and scales cleanly.
+  and scales cleanly. The stripes are 5 yards each. Icons are drawn about twice real size (player 1.8
+  yards, ball 0.7; a real player is about 0.7 yards across) and each drill zooms in on its action with
+  `view: { x, y, w, h }`; `iconScale` makes a drill's actors bigger when it can only zoom a little. Space
+  players and set paths from real distances, not from icon size.
 - **Drills are data:** actors (player, coach, goalie, ball, cones...) plus per-actor keyframe tracks
   `{t, x, y}` and a caption list. One engine plays all of them. A drill can set `goal: false` to hide the goal and crease and `midfieldLabel: false` to hide the "toward midfield" label (ground ball mania does both).
 - **Engine:** has a controllable clock (`seek(t)`, `advance(dtMs)`, `play`, `pause`, `setSpeed`,

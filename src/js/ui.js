@@ -1,7 +1,7 @@
 import { SPEEDS, THEME_KEY, THEMES } from "./constants.js";
 import { DRILLS } from "./drills.js";
 import { createEngine } from "./engine.js";
-import { buildActors, buildField, placeActors } from "./render.js";
+import { buildActors, buildField, placeActors, viewBoxFor } from "./render.js";
 
 export const app = { engine: null, drillIndex: 0, layer: null, actors: null };
 
@@ -28,6 +28,7 @@ export function loadDrill(index) {
   engine.onChange(refresh);
   app.engine = engine;
   app.layer.replaceChildren();
+  $("field").setAttribute("viewBox", viewBoxFor(drill));
   // A drill can hide the goal and crease (`goal: false`), e.g. when the field is just open space.
   const goal = document.getElementById("goal");
   if (goal) goal.style.display = drill.goal === false ? "none" : "";

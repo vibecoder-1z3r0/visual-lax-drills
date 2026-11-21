@@ -18,8 +18,8 @@ function svgEl(parent, name, attrs) {
   return node;
 }
 
-function iconUse(parent, kind) {
-  const size = ICON_SIZE[kind];
+function iconUse(parent, kind, scale = 1) {
+  const size = ICON_SIZE[kind] * scale;
   return svgEl(parent, "use", {
     href: `#icon-${kind}`,
     x: -size / 2,
@@ -29,13 +29,18 @@ function iconUse(parent, kind) {
   });
 }
 
+// The part of the field a drill shows, as an SVG viewBox. A drill zooms in with
+// `view: { x, y, w, h }` (yards); without one the whole field and its margin show.
+export function viewBoxFor(drill) {
+  const v = drill && drill.view;
+  if (v) return `${v.x} ${v.y} ${v.w} ${v.h}`;
+  return `${-MARGIN} ${-MARGIN} ${FIELD_W + 2 * MARGIN} ${FIELD_H + 2 * MARGIN}`;
+}
+
 // Draws the static half field and returns the empty group the actors are drawn into.
 export function buildField(svg) {
   svg.replaceChildren();
-  svg.setAttribute(
-    "viewBox",
-    `${-MARGIN} ${-MARGIN} ${FIELD_W + 2 * MARGIN} ${FIELD_H + 2 * MARGIN}`,
-  );
+  svg.setAttribute("viewBox", viewBoxFor(null));
   svgEl(svg, "rect", {
     class: "field-surround",
     x: -MARGIN,
@@ -80,7 +85,7 @@ export function buildActors(layer, drill) {
     const classes = ["actor", `kind-${actor.kind}`, `team-${actor.team}`];
     if (actor.color) classes.push(`cone-${actor.color}`);
     const g = svgEl(layer, "g", { class: classes.join(" "), "data-actor": actor.id });
-    iconUse(g, actor.kind);
+    iconUse(g, actor.kind, drill.iconScale || 1);
     groups[actor.id] = g;
   }
   return groups;

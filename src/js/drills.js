@@ -1,13 +1,17 @@
 // Drills are plain data. Coordinates are field yards (see constants.js). Every actor has a list of
 // keyframes {t, x, y}; an actor with a single key stands still. `team` picks the ring color
 // (a, b, or none), `color` picks a cone color. `goal: false` hides the goal and crease, and
-// `midfieldLabel: false` hides the "toward midfield" label under the field.
+// `midfieldLabel: false` hides the "toward midfield" label under the field, and `view: {x, y, w, h}`
+// (yards) zooms in on part of the field. `iconScale` makes the actors bigger or smaller (the goal
+// stays real size); a drill that can only zoom a little uses a larger one so its icons stay readable.
 const k = (t, x, y) => ({ t, x, y });
 
 export const DRILLS = [
   {
     id: "two-man-shoot",
     title: "Two-man pass and shoot",
+    view: { x: 9, y: 9, w: 44, h: 41 },
+    iconScale: 1.45,
     summary: "Attackers swing the ball across the top, one cuts to the crease and finishes.",
     duration: 6,
     actors: [
@@ -34,6 +38,8 @@ export const DRILLS = [
   {
     id: "cone-weave",
     title: "Cone weave and finish",
+    view: { x: 8, y: 12, w: 44, h: 41 },
+    iconScale: 1.45,
     summary: "Carry the ball through four cones, then shoot from the top of the crease.",
     duration: 7,
     actors: [
@@ -79,6 +85,8 @@ export const DRILLS = [
   {
     id: "catch-and-throw",
     title: "Catch and throw",
+    view: { x: 16, y: 28, w: 28, h: 26 },
+    iconScale: 0.9,
     summary: "Two players stand twelve yards apart and pass the ball back and forth.",
     duration: 8,
     actors: [
@@ -116,6 +124,7 @@ export const DRILLS = [
   {
     id: "ground-ball-mania",
     title: "Ground ball mania",
+    view: { x: 20, y: 24, w: 30, h: 28 },
     goal: false,
     midfieldLabel: false,
     summary: "The coach stands beside the cone and rolls balls out one at a time. Each player runs out from the line, scoops one, rolls it back to the coach and rejoins the line.",

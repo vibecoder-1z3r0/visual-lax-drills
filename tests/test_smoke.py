@@ -78,3 +78,11 @@ def test_ground_ball_mania_hides_the_midfield_label(page):
     assert shown() == "none"
     page.select_option("#drill", "0")
     assert shown() != "none"
+
+
+def test_choosing_a_drill_zooms_to_its_view(page):
+    for index in range(4):
+        page.select_option("#drill", str(index))
+        view = page.evaluate(f"LAX.DRILLS[{index}].view")
+        expected = f"{view['x']} {view['y']} {view['w']} {view['h']}"
+        assert page.locator("#field").get_attribute("viewBox") == expected
