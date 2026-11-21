@@ -65,9 +65,13 @@ Borrowed from `the-quest-map-generator`:
    `dist/index.html` directly, and the tests load it as a `file://` URL. (An earlier attempt that
    included a localhost URL was blocked by AI Guardian as `ssrf_blocked`.) Next: real art, more drills,
    icon sizes (they are small next to the 60-yard field), more themes.
-2. **Session recorder:** the user wants the session recorder from `the-quest-map-generator`
+2. **Session recorder: deferred by the user.** It would come from `the-quest-map-generator`
    (`scripts/session_timing.py`, `scripts/session_log_header.md`, the pre-commit hook in
-   `scripts/hooks/`, `SESSION_LOG.md`, `make session-log`). Not copied yet.
+   `scripts/hooks/`, `SESSION_LOG.md`, `make session-log`). The copy command was blocked by AI Guardian
+   (`tool_permission`, subreason `immutable_protection`, `viol_23534299`; the target was not named).
+   Do not retry it in another form; ask the user first. If it is ever added, redact secret-shaped
+   prompts in the log (the user chose redaction), because `SESSION_LOG.md` records the first 70
+   characters of every prompt.
 3. **Themes:** need to look at how `many-game-show` / `many-board` do themes. Attaching those repos
    needs the user's approval, because the earlier `list_repos` / `add_repo` calls were logged by AI
    Guardian as `tool_permission` blocks (admin permission) even though they ran in warn mode.
