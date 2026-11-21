@@ -4,6 +4,10 @@ import pytest
 from conftest import choose_drill
 
 FIELD_W, FIELD_H = 60, 55
+# Every drill as it plays: a drill with versions counts once per version, and once per take (seed).
+ALL_PLAYABLE = """LAX.DRILLS.flatMap((d) => d.variants
+  ? d.variants.flatMap((v, i) => (v.takes || [v]).map((_, k) => LAX.resolveDrill(d, i, k)))
+  : [d])"""
 
 
 def test_track_interpolates_and_clamps(page):
@@ -14,9 +18,9 @@ def test_track_interpolates_and_clamps(page):
 
 
 def test_every_drill_is_well_formed(page):
-    drills = page.evaluate("LAX.DRILLS")
+    drills = page.evaluate(ALL_PLAYABLE)
     assert drills
-    ids = [d["id"] for d in drills]
+    ids = [d["id"] for d in page.evaluate("LAX.DRILLS")]
     assert len(ids) == len(set(ids))
     for drill in drills:
         names = [a["id"] for a in drill["actors"]]
@@ -223,7 +227,7 @@ def test_ground_ball_mania_players_keep_moving_and_stay_believable(page):
 
 def test_every_actor_stays_inside_its_drills_view(page):
     """A drill zooms in with `view`; nobody may leave the part of the field that is shown."""
-    drills = page.evaluate("LAX.DRILLS")
+    drills = page.evaluate(ALL_PLAYABLE)
     for drill in drills:
         view = drill.get("view")
         if not view:
@@ -251,24 +255,38 @@ def test_a_held_ball_sits_in_the_sticks_pocket(page):
     stick's pocket: about 0.375 of the icon width across and 0.25 up, scaled to the drill's icons."""
     result = page.evaluate(
         """() => {
+      const ALL = __ALL__;
       const bad = [];
-      for (const drill of LAX.DRILLS) {
+      for (const drill of ALL) {
         const size = LAX.ICON_SIZE.player * (drill.iconScale || 1);
         const players = drill.actors.filter((a) => a.kind === 'player');
         for (const ball of drill.actors.filter((a) => a.kind === 'ball')) {
-          for (const key of ball.keys) {
+          const near = (key, p) => {
+            const at = LAX.trackAt(p.keys, key.t);
+            return Math.hypot(key.x - at.x, key.y - at.y) <= 0.6 * size;  // a held ball is ~0.45 away
+          };
+          const atPocket = (key, p) => {
+            const at = LAX.trackAt(p.keys, key.t);
+            return Math.abs(key.x - at.x - 0.375 * size) <= 0.12 * size
+              && Math.abs(key.y - at.y + 0.25 * size) <= 0.12 * size;
+          };
+          ball.keys.forEach((key, i) => {
+            if (key.loose) return;                                   // lying on the ground
+            if (players.some((p) => atPocket(key, p))) return;       // properly held (a defender
+                                                                     // standing close is fine)
             for (const p of players) {
-              const at = LAX.trackAt(p.keys, key.t);
-              const dx = key.x - at.x, dy = key.y - at.y;
-              if (Math.hypot(dx, dy) > 1.6 * size) continue;         // not held by this player
-              if (Math.abs(dx - 0.375 * size) > 0.12 * size || Math.abs(dy + 0.25 * size) > 0.12 * size) {
-                bad.push({ drill: drill.id, ball: ball.id, t: key.t, player: p.id, dx, dy });
+              // Held but misplaced: beside the same player at a neighbouring key too. A pass in
+              // flight that is sampled beside a third player does not count.
+              const next = ball.keys[i + 1], prev = ball.keys[i - 1];
+              if (near(key, p) && ((next && near(next, p)) || (prev && near(prev, p)))) {
+                const at = LAX.trackAt(p.keys, key.t);
+                bad.push({ drill: drill.id, ball: ball.id, t: key.t, player: p.id, dx: key.x - at.x, dy: key.y - at.y });
               }
             }
-          }
+          });
         }
       }
       return bad;
-    }"""
+    }""".replace("__ALL__", ALL_PLAYABLE)
     )
     assert result == [], result

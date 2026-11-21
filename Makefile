@@ -4,7 +4,7 @@ DENO ?= $(if $(wildcard .venv/bin/deno),.venv/bin/deno,deno)
 
 SOURCES := $(shell find src icons-custom -type f 2>/dev/null) scripts/build.py
 
-.PHONY: build lint test clean setup screenshots session-log hooks serve
+.PHONY: build lint test clean setup screenshots session-log hooks serve choreography
 
 # CI runs these three, in this order, as separate steps: make build, make lint, make test.
 # lint and test use the built page, so they only rebuild it if it is missing or out of date.
@@ -26,6 +26,9 @@ test: dist/index.html ## run the Playwright suite against dist/index.html
 
 screenshots: build ## rebuild docs/screenshots/ for the README (commit the result)
 	$(PY) scripts/screenshots.py
+
+choreography:     ## regenerate src/js/keepaway_data.js from scripts/keepaway_choreography.py
+	$(PY) scripts/keepaway_choreography.py
 
 serve: dist/index.html ## serve dist/ at http://127.0.0.1:8000 (the page also opens straight from disk)
 	cd dist && $(abspath $(PY)) -m http.server 8000 --bind 127.0.0.1

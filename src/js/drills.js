@@ -1,3 +1,5 @@
+import { KEEP_AWAY_VARIANTS } from "./keepaway_data.js";
+
 // Drills are plain data. Coordinates are field yards (see constants.js). Every actor has a list of
 // keyframes {t, x, y}; an actor with a single key stands still. `team` picks the ring color
 // (a, b, or none), `color` picks a cone color. `goal: false` hides the goal and crease, and
@@ -5,6 +7,11 @@
 // (yards) zooms in on part of the field. `iconScale` makes the actors bigger or smaller (the goal
 // stays real size); a drill that can only zoom a little uses a larger one so its icons stay readable.
 const k = (t, x, y) => ({ t, x, y });
+
+// Keep-away's rounds are generated (scripts/keepaway_choreography.py) as [time, x, y] rows, and a
+// ball row ending in 1 means the ball is on the ground. Turn them into keyframes.
+const toKeys = (rows) =>
+  rows.map(([t, x, y, loose]) => (loose ? { t, x, y, loose: true } : { t, x, y }));
 
 export const DRILLS = [
   {
@@ -40,6 +47,38 @@ export const DRILLS = [
       { t: 13, text: "Around again, everyone circling the same way. Field as many ground balls as you can." },
       { t: 19.5, text: "Six ground balls in about 21 seconds. Beat that next round." },
     ],
+  },
+  {
+    id: "keep-away",
+    title: "Keep away",
+    summary:
+      "Two teams start on the west sideline. A few players from each go for a rolled ball, then " +
+      "play keep-away, with red always a player up on blue. The coach calls 'release' to add the " +
+      "next player from each team, up to 5 on 4, then counts down. The team with the ball wins.",
+    // A small field: the west sideline is 15 yards from the goal, the east boundary 15 yards on the
+    // other side, and the 20-yard line is 20 yards out from the goal line.
+    view: { x: 8, y: 12, w: 40, h: 38 },
+    iconScale: 1.35,
+    notes:
+      "Note: either coach can run the drill (call the releases, the countdown and the reset, or throw in a new ball). With only one coach, that coach does it all. Here the coach at the cone runs the drill and the coach in the field throws in new balls.",
+    midfieldLabel: false,
+    markings: [
+      { type: "rect", x: 15, y: 5, w: 30, h: 50 },
+      { type: "line", x1: 15, y1: 35, x2: 45, y2: 35, dash: true },
+      { type: "text", x: 41.5, y: 34.1, text: "20-yard line" },
+    ],
+    variants: KEEP_AWAY_VARIANTS.map((v) => ({
+      id: v.id,
+      name: v.name,
+      summary: v.summary,
+      takes: v.takes.map((take) => ({
+        seed: take.seed,
+        duration: take.duration,
+        actors: take.actors.map((a) => ({ ...a, keys: toKeys(a.keys) })),
+        captions: take.captions.map(([t, text]) => ({ t, text })),
+        speech: take.speech.map(([t, dur, who, text]) => ({ t, dur, who, text })),
+      })),
+    })),
   },
   {
     id: "two-man-shoot",

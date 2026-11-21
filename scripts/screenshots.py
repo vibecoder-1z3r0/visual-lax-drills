@@ -23,6 +23,7 @@ HASH_FILE = OUT / "SOURCE_HASH"
 # drill id (also the file name), time in seconds (a moment with something happening)
 DRILL_SHOTS = [
     ("ground-ball-mania", 6.4),
+    ("keep-away", 24.0),
     ("two-man-shoot", 2.6),
     ("cone-weave", 3.2),
     ("catch-and-throw", 1.6),

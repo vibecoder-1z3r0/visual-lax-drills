@@ -183,6 +183,10 @@ body {
   color: var(--muted);
 }
 
+.pick[hidden] {
+  display: none;
+}
+
 .pick {
   display: inline-flex;
   align-items: center;
@@ -254,6 +258,13 @@ button.primary {
   color: var(--muted);
 }
 
+#notes {
+  margin: -0.25rem 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
 #caption {
   min-height: 3em;
   margin: 0 0 1rem;
@@ -304,6 +315,39 @@ button.primary {
   fill: var(--crease-fill);
   stroke: var(--field-line);
   stroke-width: 0.2;
+}
+
+/* Extra markings a drill draws on the field (sidelines, boundary, a 20-yard line...). */
+.mark-line {
+  fill: none;
+  stroke: var(--field-line);
+  stroke-width: 0.25;
+}
+
+.mark-dash {
+  stroke-dasharray: 1 0.8;
+  opacity: 0.85;
+}
+
+.mark-text {
+  fill: var(--field-line);
+  font-size: 1.1px;
+  opacity: 0.9;
+  text-anchor: middle;
+}
+
+.speech-box {
+  fill: #fff;
+  stroke: #1f2937;
+  stroke-width: 0.14px;
+}
+
+.speech-text {
+  fill: #1f2937;
+  font-size: 1.5px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
 }
 
 .field-label {

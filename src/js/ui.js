@@ -1,16 +1,34 @@
 import { SPEEDS, THEME_KEY, THEMES } from "./constants.js";
 import { DRILLS } from "./drills.js";
-import { createEngine } from "./engine.js";
-import { buildActors, buildField, placeActors, viewBoxFor } from "./render.js";
+import { createEngine, resolveDrill } from "./engine.js";
+import {
+  buildActors,
+  buildField,
+  buildSpeech,
+  placeActors,
+  placeSpeech,
+  renderMarkings,
+  viewBoxFor,
+} from "./render.js";
 
-export const app = { engine: null, drillIndex: 0, layer: null, actors: null };
+export const app = {
+  engine: null,
+  drillIndex: 0,
+  variantIndex: 0,
+  takeIndex: 0,
+  layer: null,
+  actors: null,
+  speech: {},
+};
 
 function $(id) {
   return document.getElementById(id);
 }
 
 function refresh(engine) {
-  placeActors(app.actors, engine.positions());
+  const positions = engine.positions();
+  placeActors(app.actors, positions);
+  placeSpeech(app.speech, engine.speech(), positions, engine.drill);
   $("time").textContent = `${engine.t.toFixed(1)} / ${engine.drill.duration.toFixed(1)} s`;
   $("scrub").value = String(Math.round(engine.t * 100));
   $("caption").textContent = engine.caption();
@@ -19,10 +37,45 @@ function refresh(engine) {
   $("play").setAttribute("aria-pressed", String(engine.playing));
 }
 
-export function loadDrill(index) {
+// Shows the "Version" menu only for a drill that has more than one choreographed version.
+function showVersions(base, variantIndex) {
+  const pick = $("variant-pick");
+  const select = $("variant");
+  select.replaceChildren();
+  const variants = base.variants || [];
+  pick.hidden = variants.length < 2;
+  fillSelect(
+    select,
+    variants.map((v, i) => ({ value: String(i), label: v.name })),
+    String(variantIndex),
+  );
+}
+
+// Shows the "Seed" menu when the chosen version has several takes (one per random seed).
+function showTakes(base, variantIndex, takeIndex) {
+  const pick = $("take-pick");
+  const select = $("take");
+  select.replaceChildren();
+  const variant = (base.variants || [])[variantIndex];
+  const takes = (variant && variant.takes) || [];
+  pick.hidden = takes.length < 2;
+  fillSelect(
+    select,
+    takes.map((t, i) => ({ value: String(i), label: `${t.seed}${i === 0 ? " (default)" : ""}` })),
+    String(takeIndex),
+  );
+}
+
+export function loadDrill(index, variantIndex = 0, takeIndex = 0) {
   if (app.engine) app.engine.pause();
   app.drillIndex = index;
-  const drill = DRILLS[index];
+  app.variantIndex = variantIndex;
+  app.takeIndex = takeIndex;
+  const base = DRILLS[index];
+  const drill = resolveDrill(base, variantIndex, takeIndex);
+  showVersions(base, variantIndex);
+  showTakes(base, variantIndex, takeIndex);
+  renderMarkings($("markings"), drill.markings);
   const engine = createEngine(drill);
   engine.speed = Number($("speed").value);
   engine.onChange(refresh);
@@ -36,8 +89,12 @@ export function loadDrill(index) {
   const label = document.getElementById("midfield-label");
   if (label) label.style.display = drill.midfieldLabel === false ? "none" : "";
   app.actors = buildActors(app.layer, drill);
+  app.speech = buildSpeech($("speech"), drill);
   $("title").textContent = drill.title;
   $("summary").textContent = drill.summary;
+  // An optional note under the summary (`notes`), for things a coach should know.
+  $("notes").textContent = drill.notes || "";
+  $("notes").hidden = !drill.notes;
   $("scrub").max = String(Math.round(drill.duration * 100));
   refresh(engine);
 }
@@ -95,6 +152,12 @@ export function initUi() {
   );
 
   $("drill").addEventListener("change", (e) => loadDrill(Number(e.target.value)));
+  $("variant").addEventListener("change", (e) =>
+    loadDrill(app.drillIndex, Number(e.target.value)),
+  );
+  $("take").addEventListener("change", (e) =>
+    loadDrill(app.drillIndex, app.variantIndex, Number(e.target.value)),
+  );
   $("speed").addEventListener("change", (e) => app.engine.setSpeed(Number(e.target.value)));
   $("theme").addEventListener("change", (e) => setTheme(e.target.value));
   $("play").addEventListener("click", () => app.engine.toggle());

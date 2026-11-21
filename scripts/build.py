@@ -22,7 +22,7 @@ VIEW_BOX = "-32 -32 64 64"
 SVG_NS = "http://www.w3.org/2000/svg"
 
 # Dependency order. Modules share one flat scope after bundling, so top-level names must be unique.
-JS_ORDER = ["constants", "engine", "drills", "render", "ui", "main"]
+JS_ORDER = ["constants", "engine", "keepaway_data", "drills", "render", "ui", "main"]
 
 # Every icon the page needs. Add a name here and a file in src/icons/ to add a new one.
 ICONS = ["player", "goalie", "coach", "net", "ball", "ballbag", "cone"]

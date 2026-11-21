@@ -16,6 +16,12 @@
   <label class="pick">Drill
     <select id="drill"></select>
   </label>
+  <label class="pick" id="variant-pick" hidden>Version
+    <select id="variant"></select>
+  </label>
+  <label class="pick" id="take-pick" hidden>Seed
+    <select id="take"></select>
+  </label>
   <label class="pick">Theme
     <select id="theme"></select>
   </label>
@@ -28,6 +34,7 @@
   <section id="panel" aria-label="Drill details and controls">
     <h2 id="title"></h2>
     <p id="summary"></p>
+    <p id="notes" hidden></p>
     <p id="caption" aria-live="polite"></p>
     <div id="controls">
       <button id="play" type="button" class="primary">Play</button>
