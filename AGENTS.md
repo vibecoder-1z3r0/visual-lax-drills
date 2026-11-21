@@ -30,6 +30,13 @@ Python is dev tooling only (build script, Playwright tests).
   human-initiated, `R` reviewed by a human. Swap the interface, model or effort tier if a commit is made
   with a different one; keep the rest as issued. This is separate from the no-session-link rule above.
 
+### Screenshots
+- The README shows screenshots from `docs/screenshots/`, made by `scripts/screenshots.py` (run
+  `make screenshots`). A test fails when `src/` has changed since they were made, so after any change
+  that can alter how the page looks (drills, icons, styles, layout, build script), run
+  `make screenshots` and commit the images in the same commit. A new drill gets an entry in
+  `DRILL_SHOTS` in that script (and a row in the README drills table).
+
 ### Security tooling
 - AI Guardian hooks are enforcement. If a tool call is blocked, report the violation type and location
   (use `get_violations`) and stop. Do not retry the same thing in another form to get around a block.
