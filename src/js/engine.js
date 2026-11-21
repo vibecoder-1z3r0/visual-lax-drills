@@ -23,21 +23,25 @@ export function speechAt(speech, t) {
   return (speech || []).filter((s) => s.t <= t && t < s.t + s.dur);
 }
 
-// A drill can have several choreographed versions ("variants"); the first is the default. Each
-// variant gives its own actors, captions and duration (and optionally its own summary); everything
-// else (title, view, flags, markings) comes from the drill. Returns a plain drill the engine can play.
-export function resolveDrill(drill, variantIndex = 0) {
+// A drill can have several choreographed versions ("variants"); the first is the default. A variant
+// gives its own actors, captions, speech and duration (and optionally its own summary); everything
+// else (title, view, flags, markings) comes from the drill. A variant can also have `takes`, the same
+// scenario played out differently (for example one per random seed); the first take is the default.
+// Returns a plain drill the engine can play.
+export function resolveDrill(drill, variantIndex = 0, takeIndex = 0) {
   if (!drill.variants) return drill;
   const variant = drill.variants[variantIndex] || drill.variants[0];
+  const take = variant.takes ? variant.takes[takeIndex] || variant.takes[0] : variant;
   return {
     ...drill,
-    actors: variant.actors,
-    captions: variant.captions,
-    speech: variant.speech,
-    duration: variant.duration,
+    actors: take.actors,
+    captions: take.captions,
+    speech: take.speech,
+    duration: take.duration,
     summary: variant.summary || drill.summary,
     variantId: variant.id,
     variantName: variant.name,
+    seed: take.seed,
   };
 }
 

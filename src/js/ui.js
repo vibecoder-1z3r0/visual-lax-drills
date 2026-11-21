@@ -15,6 +15,7 @@ export const app = {
   engine: null,
   drillIndex: 0,
   variantIndex: 0,
+  takeIndex: 0,
   layer: null,
   actors: null,
   speech: {},
@@ -50,13 +51,30 @@ function showVersions(base, variantIndex) {
   );
 }
 
-export function loadDrill(index, variantIndex = 0) {
+// Shows the "Seed" menu when the chosen version has several takes (one per random seed).
+function showTakes(base, variantIndex, takeIndex) {
+  const pick = $("take-pick");
+  const select = $("take");
+  select.replaceChildren();
+  const variant = (base.variants || [])[variantIndex];
+  const takes = (variant && variant.takes) || [];
+  pick.hidden = takes.length < 2;
+  fillSelect(
+    select,
+    takes.map((t, i) => ({ value: String(i), label: `${t.seed}${i === 0 ? " (default)" : ""}` })),
+    String(takeIndex),
+  );
+}
+
+export function loadDrill(index, variantIndex = 0, takeIndex = 0) {
   if (app.engine) app.engine.pause();
   app.drillIndex = index;
   app.variantIndex = variantIndex;
+  app.takeIndex = takeIndex;
   const base = DRILLS[index];
-  const drill = resolveDrill(base, variantIndex);
+  const drill = resolveDrill(base, variantIndex, takeIndex);
   showVersions(base, variantIndex);
+  showTakes(base, variantIndex, takeIndex);
   renderMarkings($("markings"), drill.markings);
   const engine = createEngine(drill);
   engine.speed = Number($("speed").value);
@@ -133,6 +151,9 @@ export function initUi() {
   $("drill").addEventListener("change", (e) => loadDrill(Number(e.target.value)));
   $("variant").addEventListener("change", (e) =>
     loadDrill(app.drillIndex, Number(e.target.value)),
+  );
+  $("take").addEventListener("change", (e) =>
+    loadDrill(app.drillIndex, app.variantIndex, Number(e.target.value)),
   );
   $("speed").addEventListener("change", (e) => app.engine.setSpeed(Number(e.target.value)));
   $("theme").addEventListener("change", (e) => setTheme(e.target.value));

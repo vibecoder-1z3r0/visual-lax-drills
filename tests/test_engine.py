@@ -4,10 +4,10 @@ import pytest
 from conftest import choose_drill
 
 FIELD_W, FIELD_H = 60, 55
-# Every drill as it plays: a drill with versions counts once per version.
-ALL_PLAYABLE = (
-    "LAX.DRILLS.flatMap((d) => d.variants ? d.variants.map((_, i) => LAX.resolveDrill(d, i)) : [d])"
-)
+# Every drill as it plays: a drill with versions counts once per version, and once per take (seed).
+ALL_PLAYABLE = """LAX.DRILLS.flatMap((d) => d.variants
+  ? d.variants.flatMap((v, i) => (v.takes || [v]).map((_, k) => LAX.resolveDrill(d, i, k)))
+  : [d])"""
 
 
 def test_track_interpolates_and_clamps(page):

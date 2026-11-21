@@ -19,8 +19,18 @@ VERSIONS = (
 )
 
 
-def keep_away(page, index=0):
-    return page.evaluate(f"LAX.resolveDrill(LAX.DRILLS.find((d) => d.id === 'keep-away'), {index})")
+def keep_away(page, index=0, take=0):
+    return page.evaluate(
+        f"LAX.resolveDrill(LAX.DRILLS.find((d) => d.id === 'keep-away'), {index}, {take})"
+    )
+
+
+def every_take(page):
+    """(version index, seed index, drill) for every version of every seed."""
+    counts = page.evaluate(
+        "LAX.DRILLS.find((d) => d.id === 'keep-away').variants.map((v) => v.takes.length)"
+    )
+    return [(i, k, keep_away(page, i, k)) for i, n in enumerate(counts) for k in range(n)]
 
 
 def track(page, actor, t):
@@ -94,14 +104,13 @@ def test_two_south_players_and_one_north_player_go_out_first(page):
 
 
 def test_every_version_stays_in_bounds_and_nobody_runs_faster_than_a_sprint(page):
-    for index in range(len(VERSIONS)):
-        drill = keep_away(page, index)
+    for index, take, drill in every_take(page):
         players = [a for a in drill["actors"] if a["kind"] == "player"]
         assert len(players) == 10
         for actor in players:
             keys = actor["keys"]
             # Waiting in line is out of bounds (west of the sideline); once playing, in bounds.
-            assert keys[0]["x"] < SIDELINE, (index, actor["id"])
+            assert keys[0]["x"] < SIDELINE, ((index, take), actor["id"])
             playing = [k for k in keys if k["x"] >= SIDELINE]
             # (the last player in a line never gets released: 5 against 4 is the most)
             if playing:
@@ -110,16 +119,19 @@ def test_every_version_stays_in_bounds_and_nobody_runs_faster_than_a_sprint(page
                     actor["id"],
                 )
             for key in keys:
-                assert BOX["x0"] - 2 <= key["x"] <= BOX["x1"] + 1e-6, (index, actor["id"], key)
-                assert BOX["y0"] <= key["y"] <= BOX["y1"] + 1e-6, (index, actor["id"], key)
+                assert BOX["x0"] - 2 <= key["x"] <= BOX["x1"] + 1e-6, (
+                    (index, take),
+                    actor["id"],
+                    key,
+                )
+                assert BOX["y0"] <= key["y"] <= BOX["y1"] + 1e-6, ((index, take), actor["id"], key)
             for a, b in zip(keys, keys[1:], strict=False):
                 speed = ((b["x"] - a["x"]) ** 2 + (b["y"] - a["y"]) ** 2) ** 0.5 / (b["t"] - a["t"])
-                assert speed <= 8.4, (index, actor["id"], a, b, speed)
+                assert speed <= 8.4, ((index, take), actor["id"], a, b, speed)
 
 
 def test_players_never_stack_on_top_of_each_other(page):
-    for index in range(len(VERSIONS)):
-        drill = keep_away(page, index)
+    for index, take, drill in every_take(page):
         players = [a for a in drill["actors"] if a["kind"] == "player"]
         result = page.evaluate(
             """([players, duration]) => {
@@ -136,15 +148,14 @@ def test_players_never_stack_on_top_of_each_other(page):
             [players, drill["duration"]],
         )
         # An on-ball defender stands close to the carrier, but never inside them.
-        assert result["worst"] >= 0.8, (index, result)
+        assert result["worst"] >= 0.8, (index, take, result)
 
 
 def test_every_version_has_a_start_a_release_a_countdown_and_an_end(page):
-    for index in range(len(VERSIONS)):
-        drill = keep_away(page, index)
+    for index, take, drill in every_take(page):
         text = " ".join(c["text"].lower() for c in drill["captions"])
-        assert "release" in text or "whistle" in text, index
-        assert "5" in text and "1" in text, index  # the countdown
+        assert "release" in text or "whistle" in text, (index, take)
+        assert "5" in text and "1" in text, (index, take)  # the countdown
         assert drill["captions"][0]["t"] == 0
         assert drill["duration"] >= 40
 
@@ -175,3 +186,37 @@ def test_a_speech_bubble_stays_inside_the_view(page):
         svg = page.locator("#field").bounding_box()
         assert box["x"] >= svg["x"] - 1 and box["x"] + box["width"] <= svg["x"] + svg["width"] + 1
         assert box["y"] >= svg["y"] - 1, (item, view)
+
+
+def test_each_version_has_several_seeds_and_the_default_comes_first(page):
+    drill = page.evaluate("LAX.DRILLS.find((d) => d.id === 'keep-away')")
+    for variant in drill["variants"]:
+        seeds = [take["seed"] for take in variant["takes"]]
+        assert len(seeds) >= 4 and len(set(seeds)) == len(seeds), variant["id"]
+    # different seeds really play out differently
+    a, b = keep_away(page, 0, 0), keep_away(page, 0, 1)
+    ball_a = next(x for x in a["actors"] if x["id"] == "ball")["keys"]
+    ball_b = next(x for x in b["actors"] if x["id"] == "ball")["keys"]
+    assert ball_a != ball_b
+
+
+def test_the_seed_menu_plays_another_take_and_resets_on_a_new_version(page):
+    choose_drill(page, "keep-away")
+    assert page.locator("#take-pick").is_visible()
+    assert page.locator("#take option").count() >= 4
+    assert "default" in page.locator("#take option").first.inner_text()
+    first_seed = page.evaluate("LAX.app.engine.drill.seed")
+    page.select_option("#take", "2")
+    assert page.evaluate("LAX.app.engine.drill.seed") != first_seed
+    assert page.evaluate("LAX.app.engine.t") == 0
+    page.select_option("#variant", "1")  # a new version starts on its default seed
+    assert page.locator("#take").input_value() == "0"
+    choose_drill(page, "catch-and-throw")
+    assert not page.locator("#take-pick").is_visible()
+
+
+def test_the_coach_in_the_field_drifts_out_of_bounds(page):
+    drill = keep_away(page)
+    coach = next(a for a in drill["actors"] if a["id"] == "coach2")["keys"]
+    assert coach[0]["x"] < 45  # starts in the field
+    assert coach[-1]["x"] > 45  # and ends up out of bounds, out of the players' way
