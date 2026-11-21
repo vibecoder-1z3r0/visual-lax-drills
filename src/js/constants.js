@@ -14,7 +14,7 @@ export const ICON_SIZE = {
   player: 1.8,
   goalie: 1.9,
   coach: 1.9,
-  ball: 0.7,
+  ball: 0.5,
   cone: 0.9,
   ballbag: 1.5,
   net: 2.7,
