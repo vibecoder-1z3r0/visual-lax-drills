@@ -163,8 +163,8 @@ def test_ground_ball_mania_rolled_balls_never_pass_close_to_a_player(page):
 
 
 def test_ground_ball_mania_rolls_head_toward_the_goal(page):
-    """Each ball is rolled toward the goal (within 30 degrees of straight at it) and 5 to 10
-    yards out. The second ball is the 5-yard minimum."""
+    """Each ball is rolled toward the goal (within 30 degrees of straight at it) and about 8 to 10
+    yards out. The second ball is the shortest of the four."""
     import math
 
     drill = page.evaluate("LAX.DRILLS.find((d) => d.id === 'ground-ball-mania')")
