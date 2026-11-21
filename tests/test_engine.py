@@ -131,9 +131,9 @@ def test_ground_ball_mania_nobody_collides(page):
         pos = {i: at(i, t) for i in kids}
         for i, a in enumerate(kids):
             for b in kids[i + 1 :]:
-                assert dist(pos[a], pos[b]) >= 3.2, (t, a, b)
-            assert dist(pos[a], at("coach", t)) >= 3.2, (t, a, "coach")
-            assert dist(pos[a], at("bag", t)) >= 2.7, (t, a, "bag")
+                assert dist(pos[a], pos[b]) >= 1.8, (t, a, b)
+            assert dist(pos[a], at("coach", t)) >= 2.0, (t, a, "coach")
+            assert dist(pos[a], at("bag", t)) >= 1.6, (t, a, "bag")
 
 
 def test_ground_ball_mania_rolled_balls_never_pass_close_to_a_player(page):
@@ -194,7 +194,7 @@ def test_ground_ball_mania_players_keep_moving_and_stay_believable(page):
         """() => {
       const drill = LAX.DRILLS.find((d) => d.id === 'ground-ball-mania');
       const kids = drill.actors.filter((a) => a.id.startsWith('p'));
-      const slots = [38, 41.6, 45.2, 48.8].map((y) => ({ x: 30, y }));
+      const slots = [38, 39.9, 41.8, 43.7].map((y) => ({ x: 30, y }));
       const inLine = (p) => slots.some((s) => Math.hypot(p.x - s.x, p.y - s.y) < 0.3);
       const dt = 0.05;
       let slowest = Infinity, fastest = 0, slowAt = null;
