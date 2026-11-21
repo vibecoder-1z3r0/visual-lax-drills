@@ -258,6 +258,12 @@ button.primary {
   color: var(--muted);
 }
 
+#take-error {
+  margin: 0 0 0.75rem;
+  color: #b42318; /* an error is red in every theme */
+  font-size: 0.9rem;
+}
+
 #notes {
   margin: -0.25rem 0 0.75rem;
   color: var(--muted);

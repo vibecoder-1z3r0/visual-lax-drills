@@ -43,7 +43,9 @@ The page works at phone width: the field first, then the controls.
 ## Use it
 
 Open `dist/index.html` in a browser after building, or use the live site above. There is no server
-and no runtime dependency.
+and no runtime dependency. The Seed menu of keep away and odd man loads each extra seed from the
+`takes/` folder next to the page the first time you pick it (the default seed is in the page itself,
+so the page still plays if that folder is missing).
 
 ## Develop
 

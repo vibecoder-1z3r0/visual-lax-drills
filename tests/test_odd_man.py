@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from conftest import choose_drill
+from conftest import choose_drill, load_every_take
 
 GOAL = (30, 15)
 VERSIONS = ("standard", "goal-reset", "goal-new-ball-release", "man-down-offense")
@@ -13,8 +13,9 @@ def drill_data(page, version=0, take=0):
 
 
 def every_take(page):
+    load_every_take(page)
     counts = page.evaluate(
-        "LAX.DRILLS.find((d) => d.id === 'odd-man').variants.map((v) => v.takes.length)"
+        "LAX.DRILLS.find((d) => d.id === 'odd-man').variants.map((v) => v.seeds.length)"
     )
     return [(i, k, drill_data(page, i, k)) for i, n in enumerate(counts) for k in range(n)]
 
@@ -129,4 +130,4 @@ def test_the_seed_menu_works_for_odd_man(page):
     assert page.locator("#take option").count() == 5
     first = page.evaluate("LAX.app.engine.drill.seed")
     page.select_option("#take", "1")
-    assert page.evaluate("LAX.app.engine.drill.seed") != first
+    page.wait_for_function("(first) => LAX.app.engine.drill.seed !== first", arg=first)

@@ -1,4 +1,5 @@
-# Visual Lax Drills. The shipped artifact is a single dist/index.html (open it straight from disk).
+# Visual Lax Drills. The shipped artifact is dist/index.html (open it straight from disk) plus the
+# dist/takes/ folder with the extra seeds, which the page loads only when one is picked.
 PY ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 DENO ?= $(if $(wildcard .venv/bin/deno),.venv/bin/deno,deno)
 
@@ -27,7 +28,7 @@ test: dist/index.html ## run the Playwright suite against dist/index.html
 screenshots: build ## rebuild docs/screenshots/ for the README (commit the result)
 	$(PY) scripts/screenshots.py
 
-choreography:     ## regenerate src/js/keepaway_data.js from scripts/choreography.py
+choreography:     ## regenerate the generated drill data and src/takes/ from scripts/choreography.py
 	$(PY) scripts/choreography.py
 
 serve: dist/index.html ## serve dist/ at http://127.0.0.1:8000 (the page also opens straight from disk)

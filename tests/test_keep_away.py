@@ -4,7 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from conftest import choose_drill
+from conftest import choose_drill, load_every_take
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -28,8 +28,9 @@ def keep_away(page, index=0, take=0):
 
 def every_take(page):
     """(version index, seed index, drill) for every version of every seed."""
+    load_every_take(page)
     counts = page.evaluate(
-        "LAX.DRILLS.find((d) => d.id === 'keep-away').variants.map((v) => v.takes.length)"
+        "LAX.DRILLS.find((d) => d.id === 'keep-away').variants.map((v) => v.seeds.length)"
     )
     return [(i, k, keep_away(page, i, k)) for i, n in enumerate(counts) for k in range(n)]
 
@@ -192,9 +193,12 @@ def test_a_speech_bubble_stays_inside_the_view(page):
 def test_each_version_has_several_seeds_and_the_default_comes_first(page):
     drill = page.evaluate("LAX.DRILLS.find((d) => d.id === 'keep-away')")
     for variant in drill["variants"]:
-        seeds = [take["seed"] for take in variant["takes"]]
+        seeds = variant["seeds"]
         assert len(seeds) >= 4 and len(set(seeds)) == len(seeds), variant["id"]
+        assert len(variant["takes"]) == 1, "only the default take is in the page"
+        assert variant["takes"][0]["seed"] == seeds[0]
     # different seeds really play out differently
+    load_every_take(page)
     a, b = keep_away(page, 0, 0), keep_away(page, 0, 1)
     ball_a = next(x for x in a["actors"] if x["id"] == "ball")["keys"]
     ball_b = next(x for x in b["actors"] if x["id"] == "ball")["keys"]
@@ -208,7 +212,7 @@ def test_the_seed_menu_plays_another_take_and_resets_on_a_new_version(page):
     assert "default" in page.locator("#take option").first.inner_text()
     first_seed = page.evaluate("LAX.app.engine.drill.seed")
     page.select_option("#take", "2")
-    assert page.evaluate("LAX.app.engine.drill.seed") != first_seed
+    page.wait_for_function("(first) => LAX.app.engine.drill.seed !== first", arg=first_seed)
     assert page.evaluate("LAX.app.engine.t") == 0
     page.select_option("#variant", "1")  # a new version starts on its default seed
     assert page.locator("#take").input_value() == "0"
@@ -254,3 +258,35 @@ def test_the_note_says_who_runs_the_drill(page):
 def test_keep_away_is_the_second_drill(page):
     ids = page.evaluate("LAX.DRILLS.map((d) => d.id)")
     assert ids[:2] == ["ground-ball-mania", "keep-away"]
+
+
+def test_other_seeds_are_loaded_from_files_only_when_picked(page):
+    requested = []
+    page.on("request", lambda r: requested.append(r.url) if "/takes/" in r.url else None)
+    choose_drill(page, "keep-away")
+    assert requested == [], "nothing but the default take is fetched up front"
+    page.select_option("#take", "1")
+    page.wait_for_function(
+        "LAX.app.engine.drill.seed !== LAX.DRILLS.find((d) => d.id === 'keep-away').variants[0].seeds[0]"
+    )
+    assert (
+        len(requested) == 1
+        and requested[0].endswith(".js")
+        and "keep-away/standard-" in requested[0]
+    )
+    page.select_option("#take", "0")  # the default again: no new request
+    page.select_option("#take", "1")  # already loaded: no new request
+    assert len(requested) == 1
+
+
+def test_a_seed_that_cannot_be_loaded_says_so_and_keeps_playing(page):
+    page.route("**/takes/**", lambda route: route.abort())
+    choose_drill(page, "keep-away")
+    seed = page.evaluate("LAX.app.engine.drill.seed")
+    page.select_option("#take", "1")
+    page.locator("#take-error").wait_for(state="visible")
+    assert "could not be loaded" in page.locator("#take-error").inner_text()
+    assert page.locator("#take").input_value() == "0"  # back on the seed that is playing
+    assert page.evaluate("LAX.app.engine.drill.seed") == seed
+    page.select_option("#variant", "1")  # switching version clears the message
+    assert not page.locator("#take-error").is_visible()

@@ -1,5 +1,6 @@
 import { SPEEDS, THEME_KEY, THEMES } from "./constants.js";
 import { DRILLS } from "./drills.js";
+import { loadTake } from "./takes.js";
 import { createEngine, resolveDrill } from "./engine.js";
 import {
   buildActors,
@@ -57,13 +58,33 @@ function showTakes(base, variantIndex, takeIndex) {
   const select = $("take");
   select.replaceChildren();
   const variant = (base.variants || [])[variantIndex];
-  const takes = (variant && variant.takes) || [];
-  pick.hidden = takes.length < 2;
+  const seeds = (variant && variant.seeds) || [];
+  pick.hidden = seeds.length < 2;
   fillSelect(
     select,
-    takes.map((t, i) => ({ value: String(i), label: `${t.seed}${i === 0 ? " (default)" : ""}` })),
+    seeds.map((seed, i) => ({ value: String(i), label: `${seed}${i === 0 ? " (default)" : ""}` })),
     String(takeIndex),
   );
+}
+
+// Picks another seed. Its take is loaded first (the default one is already here); if that fails
+// the menu goes back to the seed that is playing and a message says why.
+async function chooseTake(takeIndex) {
+  const base = DRILLS[app.drillIndex];
+  const select = $("take");
+  select.disabled = true;
+  try {
+    await loadTake(base, app.variantIndex, takeIndex);
+    $("take-error").hidden = true;
+    loadDrill(app.drillIndex, app.variantIndex, takeIndex);
+  } catch {
+    select.value = String(app.takeIndex);
+    $("take-error").textContent =
+      "That seed could not be loaded. Its file lives in the takes folder next to index.html.";
+    $("take-error").hidden = false;
+  } finally {
+    select.disabled = false;
+  }
 }
 
 export function loadDrill(index, variantIndex = 0, takeIndex = 0) {
@@ -75,6 +96,7 @@ export function loadDrill(index, variantIndex = 0, takeIndex = 0) {
   const drill = resolveDrill(base, variantIndex, takeIndex);
   showVersions(base, variantIndex);
   showTakes(base, variantIndex, takeIndex);
+  $("take-error").hidden = true;
   renderMarkings($("markings"), drill.markings);
   const engine = createEngine(drill);
   engine.speed = Number($("speed").value);
@@ -155,9 +177,7 @@ export function initUi() {
   $("variant").addEventListener("change", (e) =>
     loadDrill(app.drillIndex, Number(e.target.value)),
   );
-  $("take").addEventListener("change", (e) =>
-    loadDrill(app.drillIndex, app.variantIndex, Number(e.target.value)),
-  );
+  $("take").addEventListener("change", (e) => chooseTake(Number(e.target.value)));
   $("speed").addEventListener("change", (e) => app.engine.setSpeed(Number(e.target.value)));
   $("theme").addEventListener("change", (e) => setTheme(e.target.value));
   $("play").addEventListener("click", () => app.engine.toggle());

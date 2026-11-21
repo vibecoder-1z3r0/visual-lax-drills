@@ -14,6 +14,25 @@ const k = (t, x, y) => ({ t, x, y });
 const toKeys = (rows) =>
   rows.map(([t, x, y, loose]) => (loose ? { t, x, y, loose: true } : { t, x, y }));
 
+// A generated take (one random seed) as the engine wants it.
+export const expandTake = (raw) => ({
+  seed: raw.seed,
+  duration: raw.duration,
+  actors: raw.actors.map((a) => ({ ...a, keys: toKeys(a.keys) })),
+  captions: raw.captions.map(([t, text]) => ({ t, text })),
+  speech: raw.speech.map(([t, dur, who, text]) => ({ t, dur, who, text })),
+});
+
+// A generated version has its default take here and lists all its seeds. The other takes are
+// loaded from takes/ when someone picks that seed (see takes.js), and put in `takes` by position.
+const variantFrom = (v) => ({
+  id: v.id,
+  name: v.name,
+  summary: v.summary,
+  seeds: v.seeds,
+  takes: [expandTake(v.takes[0])],
+});
+
 export const DRILLS = [
   {
     id: "ground-ball-mania",
@@ -68,18 +87,7 @@ export const DRILLS = [
       { type: "line", x1: 15, y1: 35, x2: 45, y2: 35, dash: true },
       { type: "text", x: 41.5, y: 34.1, text: "20-yard line" },
     ],
-    variants: KEEP_AWAY_VARIANTS.map((v) => ({
-      id: v.id,
-      name: v.name,
-      summary: v.summary,
-      takes: v.takes.map((take) => ({
-        seed: take.seed,
-        duration: take.duration,
-        actors: take.actors.map((a) => ({ ...a, keys: toKeys(a.keys) })),
-        captions: take.captions.map(([t, text]) => ({ t, text })),
-        speech: take.speech.map(([t, dur, who, text]) => ({ t, dur, who, text })),
-      })),
-    })),
+    variants: KEEP_AWAY_VARIANTS.map(variantFrom),
   },
   {
     id: "odd-man",
@@ -99,18 +107,7 @@ export const DRILLS = [
       { type: "line", x1: 15, y1: 35, x2: 45, y2: 35, dash: true },
       { type: "text", x: 41.5, y: 34.1, text: "20-yard line" },
     ],
-    variants: ODD_MAN_VARIANTS.map((v) => ({
-      id: v.id,
-      name: v.name,
-      summary: v.summary,
-      takes: v.takes.map((take) => ({
-        seed: take.seed,
-        duration: take.duration,
-        actors: take.actors.map((a) => ({ ...a, keys: toKeys(a.keys) })),
-        captions: take.captions.map(([t, text]) => ({ t, text })),
-        speech: take.speech.map(([t, dur, who, text]) => ({ t, dur, who, text })),
-      })),
-    })),
+    variants: ODD_MAN_VARIANTS.map(variantFrom),
   },
   {
     id: "two-man-shoot",
