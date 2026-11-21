@@ -3,7 +3,7 @@ from __future__ import annotations
 from conftest import choose_drill, load_every_take
 
 GOAL = (30, 15)
-VERSIONS = ("standard", "goal-reset", "goal-new-ball-release", "man-down-offense")
+VERSIONS = ("standard", "goal-reset", "goal-new-ball", "man-down-offense", "with-goalie")
 
 
 def drill_data(page, version=0, take=0):
@@ -28,7 +28,7 @@ def text_of(drill):
     return " ".join(c["text"] for c in drill["captions"])
 
 
-def test_it_is_listed_after_keep_away_with_four_versions(page):
+def test_it_is_listed_after_keep_away_with_five_versions(page):
     ids = page.evaluate("LAX.DRILLS.map((d) => d.id)")
     assert ids[:3] == ["ground-ball-mania", "keep-away", "odd-man"]
     drill = page.evaluate("LAX.DRILLS.find((d) => d.id === 'odd-man')")
@@ -48,11 +48,14 @@ def test_the_generated_data_is_current():
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_there_is_a_goalie_and_the_goal_shows(page):
+def test_the_goalie_is_optional_and_the_goal_always_shows(page):
     choose_drill(page, "odd-man")
-    drill = drill_data(page)
-    kinds = [a["kind"] for a in drill["actors"]]
-    assert kinds.count("goalie") == 1 and kinds.count("player") == 10
+    for index, version in enumerate(VERSIONS):
+        drill = drill_data(page, index)
+        kinds = [a["kind"] for a in drill["actors"]]
+        assert kinds.count("player") == 10, version
+        assert kinds.count("goalie") == (1 if version == "with-goalie" else 0), version
+        assert "save" not in text_of(drill).lower() or version == "with-goalie"
     assert drill.get("goal") is not False
     assert page.locator("#goal").is_visible()
 
@@ -64,7 +67,8 @@ def test_everyone_stays_out_of_the_crease_and_the_goalie_stays_in_front_of_the_g
                 for key in actor["keys"]:
                     d = ((key["x"] - GOAL[0]) ** 2 + (key["y"] - GOAL[1]) ** 2) ** 0.5
                     assert d >= 3.2, (version, take, actor["id"], key)
-        for key in keys_of(drill, "goalie"):
+        goalie = [a for a in drill["actors"] if a["id"] == "goalie"]
+        for key in goalie[0]["keys"] if goalie else []:
             d = ((key["x"] - GOAL[0]) ** 2 + (key["y"] - GOAL[1]) ** 2) ** 0.5
             assert d <= 3.0, (version, take, key)
 
@@ -107,14 +111,19 @@ def test_a_player_with_a_shot_takes_it_and_the_round_ends_with_a_reset(page):
 def test_what_happens_after_a_goal_depends_on_the_version(page):
     reset = drill_data(page, 1)
     assert "goal" in text_of(reset) and [s["text"] for s in reset["speech"]].count("New ball!") == 0
+    new_ball = drill_data(page, 2)
+    assert [s["text"] for s in new_ball["speech"]].count("New ball!") == 1
+    assert [s["text"] for s in new_ball["speech"]].count("Release!") == 0
+    # the standard round releases a player from each line with every new ball, up to 5 on 4
     standard = drill_data(page, 0)
-    assert [s["text"] for s in standard["speech"]].count("New ball!") == 1
-    release = drill_data(page, 2)
-    new_ball = next(s for s in release["speech"] if s["text"] == "New ball!")
-    together = [s for s in release["speech"] if s["text"] == "Release!" and s["t"] == new_ball["t"]]
-    assert together, "the coach at the cone releases the next players as the new ball goes in"
-    # the player count grows: 3 red and 2 blue are playing after the release
-    assert "Now 3 red against 2 blue" in text_of(release)
+    releases = [s for s in standard["speech"] if s["text"] == "Release!"]
+    balls = [s for s in standard["speech"] if s["text"] == "New ball!"]
+    assert len(releases) == 3 and len(balls) == 3
+    assert {r["t"] for r in releases} == {b["t"] for b in balls}, (
+        "each release comes with a new ball"
+    )
+    text = text_of(standard)
+    assert "Now 3 red against 2 blue" in text and "Now 5 red against 4 blue" in text
 
 
 def test_the_team_a_player_down_goes_on_offense_when_it_gets_the_ball(page):

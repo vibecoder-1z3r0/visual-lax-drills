@@ -18,7 +18,7 @@ out, scoops one, rolls it back to the coach on the run and rejoins the line, all
 |---|---|
 | Ground ball mania (the default) | A line of four scoops balls rolled out by the coach, one after another. |
 | Keep away | Five a side on the sideline; two red and one blue chase a rolled ball, then play keep-away. A whistle releases one more from each line (up to 5v4); a countdown from 5 ends the round. Five versions (Version menu), each with five seeds (Seed menu) that play out differently. |
-| Syracuse (odd man, offense/defense) | Like keep away, but whoever has the ball is on offense and shoots when there is a shot, at a goalie. After a goal: a new ball, a reset, or a new ball plus a release. Four versions, each with five seeds. |
+| Syracuse (odd man, offense/defense) | Like keep away, but whoever has the ball is on offense and shoots when there is a shot, at a goalie. After a goal: a new ball, a reset, or a new ball plus a release. Five versions (the goalie is optional), each with five seeds. |
 | Two-man pass and shoot | Attackers swing the ball across the top, one cuts to the crease and finishes. |
 | Cone weave and finish | Carry the ball through four cones, then shoot from the top of the crease. |
 | Catch and throw | Two players twelve yards apart pass the ball back and forth. |

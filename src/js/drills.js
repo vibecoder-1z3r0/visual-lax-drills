@@ -95,7 +95,8 @@ export const DRILLS = [
     summary:
       "Like keep away, but whoever has the ball is on offense and takes any shot on net. The " +
       "team a player down defends goal side. After a goal a coach can throw in a new ball, call " +
-      "a reset, or throw in a new ball and release the next player from each line.",
+      "a reset, or throw in a new ball and release the next player from each line. A goalie is " +
+      "optional.",
     // The same small field as keep away; the view reaches up to the goal.
     view: { x: 6, y: 7, w: 44, h: 42 },
     iconScale: 1.35,

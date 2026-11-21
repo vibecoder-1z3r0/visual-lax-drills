@@ -162,6 +162,7 @@ class Round:
     def __init__(self, spec):
         self.spec = spec
         self.offense = spec.get("mode") == "offense"
+        self.has_goalie = bool(spec.get("goalie", False))  # a goalie is optional
         use_zone(ODD_ZONE if self.offense else KEEP_ZONE, self.offense)
         self.rng = random.Random(spec["seed"])
         self.players = {}
@@ -375,6 +376,8 @@ class Round:
         self.finish_step(ball_keys)
 
     def move_goalie(self, t):
+        if not self.has_goalie:
+            return
         if self.g_dive:  # a dive for a shot: the keys were worked out with the shot
             self.g_keys += self.g_dive
             self.g_pos = (self.g_dive[-1][1], self.g_dive[-1][2])
@@ -450,8 +453,8 @@ class Round:
                 away[1] + 0.45 * to_centre[1] + 0.3 * p.heading[1],
             )
         )
-        if self.offense and dist(p.pos, GOAL) > SHOT_MAX - 1.5:
-            v = unit(add(v, unit(sub(GOAL, p.pos)), 1.1))  # drive at the goal
+        if self.offense and dist(p.pos, GOAL) > SHOT_MIN + 1.0:
+            v = unit(add(v, unit(sub(GOAL, p.pos)), 2.4))  # drive at the goal
         angle = self.rng.uniform(-0.5, 0.5)
         v = (
             v[0] * math.cos(angle) - v[1] * math.sin(angle),
@@ -485,8 +488,8 @@ class Round:
             edge = min(c[0] - ZONE[0], ZONE[1] - c[0], c[1] - ZONE[2], ZONE[3] - c[1])
             score -= 1.5 * max(0.0, 2.0 - edge)
             score -= 1.2 * max(0.0, 3.0 - dist(c, self.c_nxt))
-            if self.offense:  # get open near the goal, but never in the crease
-                score -= 0.3 * max(0.0, dist(c, GOAL) - 9.0)
+            if self.offense:  # cut to the attack spots about eight yards out, never in the crease
+                score -= 0.9 * abs(dist(c, GOAL) - 8.0)
             score += self.rng.uniform(0.0, 0.6)
             if score > best_score:
                 best, best_score = c, score
@@ -581,6 +584,8 @@ class Round:
         if not SHOT_MIN <= d <= SHOT_MAX:
             return None
         outcome, after = shots[self.shot_i]
+        if outcome == "save" and not self.has_goalie:
+            raise SystemExit(f"{self.spec['id']}: a save needs a goalie")
         start = pocket_of(carrier.pos)
         side = 1 if carrier.pos[0] >= GOAL[0] else -1  # the side the shooter is on
         if outcome == "goal":
@@ -602,7 +607,8 @@ class Round:
             rest = (aim[0], aim[1] - 0.5)
             keys = [(t + tau, aim[0], aim[1], 0), (t + tau + 0.3, rest[0], rest[1], 1)]
             dive = add(GOAL, (side * 1.5, GOALIE_HOME - 0.2))
-            self.caption(t, f"{who} has a shot and takes it: goal! The goalie went the other way.")
+            other_way = " The goalie went the other way." if self.has_goalie else ""
+            self.caption(t, f"{who} has a shot and takes it: goal!{other_way}")
         elif outcome == "save":
             rest = (self.g_pos[0] + side * 0.4, self.g_pos[1] + 1.0)
             keys = [(t + tau, aim[0], aim[1], 0), (t + tau + 0.4, rest[0], rest[1], 1)]
@@ -613,7 +619,8 @@ class Round:
             keys = [(t + tau, aim[0], aim[1], 1), (t + tau + 0.5, rest[0], rest[1], 1)]
             dive = add(GOAL, (side * 0.8, GOALIE_HOME))
             self.caption(t, f"{who} has a shot and takes it, but it goes wide and rolls behind.")
-        self.g_dive = [(t + tau, dive[0], dive[1]), (t + DT, dive[0], dive[1])]
+        if self.has_goalie:
+            self.g_dive = [(t + tau, dive[0], dive[1]), (t + DT, dive[0], dive[1])]
         end = keys[-1][0]
         self.stop_play(t, end, rest, after)
         return keys
@@ -683,9 +690,9 @@ class Round:
             (self.nb_land, best[0], best[1], 1),
         ]
         self.say(t, 1.6, "coach2", "New ball!")
-        if self.nb_release:
-            self.do_release(t)
-            self.nb_release = False
+        released = self.nb_release and self.do_release(t)
+        self.nb_release = False
+        if released:
             self.caption(
                 t,
                 'A coach throws in a new ball ("New ball!") and the coach at the cone calls '
@@ -918,12 +925,15 @@ class Round:
     # ---- the clock -----------------------------------------------------------------------
     def do_release(self, t, with_whistle=True):
         """The next player from each line joins; the coach at the cone calls it."""
+        if len(self.playing("a")) >= 5 or len(self.playing("b")) >= 4:
+            return False  # 5 against 4 is the most
         for team in ("a", "b"):
             if self.queues[team]:
                 pid = self.queues[team].pop(0)
                 self.players[pid].playing = True
         if with_whistle:
             self.say(t, 1.6, "coach", "Release!")
+        return True
 
     def handle_events(self, t):
         spec = self.spec
@@ -1081,7 +1091,7 @@ class Round:
         for pid in [f"s{i}" for i in range(1, 6)] + [f"n{i}" for i in range(1, 6)]:
             p = self.players[pid]
             actors.append({"id": pid, "kind": "player", "team": p.team, "keys": keys(p.keys)})
-        if self.offense:
+        if self.has_goalie:
             actors.append(
                 {"id": "goalie", "kind": "goalie", "team": "none", "keys": keys(self.g_keys)}
             )
@@ -1175,55 +1185,80 @@ ROUNDS = [
 ODD_ROUNDS = [
     {
         "id": "standard",
-        "name": "Standard round: a goal, a new ball, then a save and a reset",
+        "name": "Standard round: goals, and a new ball and a release every time",
         "summary": (
-            "Red wins the ground ball and attacks the net two on one. The shooter scores, a coach "
-            "throws in a new ball, they go again, the goalie makes a save and the coach resets."
+            "No goalie. Red wins the ground ball and attacks two on one. After each shot a coach "
+            "throws in a new ball and the coach at the cone releases the next player from each "
+            "line, from 2 on 1 up to 5 on 4, and then the coach resets."
         ),
         "mode": "offense",
-        "seeds": [7, 4, 12, 17, 9],
+        "seeds": [7, 14, 17, 21, 23],
+        "hold": 2,
         "gb_winner": "S",
-        "shot_after": 5.0,
-        "shots": [("goal", "new_ball"), ("save", "reset")],
+        "shot_after": 4.0,
+        "shots": [
+            ("goal", "new_ball_release"),
+            ("wide", "new_ball_release"),
+            ("goal", "new_ball_release"),
+            ("goal", "reset"),
+        ],
     },
     {
         "id": "goal-reset",
         "name": "A goal, then reset",
         "summary": (
-            "Red wins the ground ball and scores. The coach calls reset and everyone goes back to "
-            "the lines."
+            "No goalie. Red wins the ground ball and scores. The coach calls reset and everyone "
+            "goes back to the lines."
         ),
         "mode": "offense",
-        "seeds": [2, 5, 6, 7, 8],
+        "seeds": [1, 2, 3, 4, 5],
+        "hold": 2,
         "gb_winner": "S",
-        "shot_after": 5.0,
+        "shot_after": 4.0,
         "shots": [("goal", "reset")],
     },
     {
-        "id": "goal-new-ball-release",
-        "name": "A goal, then a new ball and a release",
+        "id": "goal-new-ball",
+        "name": "A goal, then a new ball",
         "summary": (
-            "After the goal a coach throws in a new ball and the coach at the cone releases the "
-            "next player from each line, so it is three on two. Next shot goes wide, then reset."
+            "No goalie. After the goal a coach throws in a new ball with the same players, they "
+            "fight for it, and the next shot goes wide before the reset."
         ),
         "mode": "offense",
-        "seeds": [2, 15, 17, 13, 9],
+        "seeds": [1, 4, 6, 8, 9],
+        "hold": 2,
         "gb_winner": "S",
-        "shot_after": 5.0,
-        "shots": [("goal", "new_ball_release"), ("wide", "reset")],
+        "shot_after": 4.0,
+        "shots": [("goal", "new_ball"), ("wide", "reset")],
     },
     {
         "id": "man-down-offense",
         "name": "The man down team gets the ball",
         "summary": (
-            "Blue, a player down, wins the ground ball. Blue is on offense now, with no take "
-            "back. The shot is saved, a new ball goes in, and the next one scores."
+            "No goalie. Blue, a player down, wins the ground ball. Blue is on offense now, with no "
+            "take back. The first shot goes wide, a new ball goes in, and the next one scores."
         ),
         "mode": "offense",
-        "seeds": [8, 10, 6, 12, 9],
+        "seeds": [1, 3, 5, 6, 7],
+        "hold": 2,
         "gb_winner": "N",
-        "shot_after": 5.0,
-        "shots": [("save", "new_ball"), ("goal", "reset")],
+        "shot_after": 4.0,
+        "shots": [("wide", "new_ball"), ("goal", "reset")],
+    },
+    {
+        "id": "with-goalie",
+        "name": "With a goalie",
+        "summary": (
+            "A goalie is optional. With one in the net, red scores, a new ball goes in, and the "
+            "goalie makes the next save before the coach resets."
+        ),
+        "mode": "offense",
+        "goalie": True,
+        "seeds": [1, 4, 6, 8, 9],
+        "hold": 2,
+        "gb_winner": "S",
+        "shot_after": 4.0,
+        "shots": [("goal", "new_ball"), ("save", "reset")],
     },
 ]
 
