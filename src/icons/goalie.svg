@@ -9,9 +9,10 @@
   <path d="M-3 18 Q0 21 3 18" fill="none" stroke="#7a3b3b" stroke-width="1.8" stroke-linecap="round"/>
   <path d="M-14 -1 V21 M0 -1 V23 M14 -1 V21" fill="none" stroke="#555" stroke-width="1.6" opacity="0.65"/>
   <path d="M-22 7 H22 M-19 15 H19" fill="none" stroke="#555" stroke-width="1.6" opacity="0.65"/>
-  <!-- Lacrosse stick held at the right: shaft, then a head with a mesh pocket. -->
-  <path d="M13 32 L26 -3" fill="none" stroke="#2b2b3a" stroke-width="5.6" stroke-linecap="round"/>
-  <path d="M13 32 L26 -3" fill="none" stroke="#c98f4a" stroke-width="3.2" stroke-linecap="round"/>
-  <path d="M26 -3 C15 -6 15 -21 22 -29 L31 -26 C33 -15 33 -7 26 -3 Z" fill="#e9ecf4" stroke="#2b2b3a" stroke-width="2.2" stroke-linejoin="round"/>
-  <path d="M19 -24 L30 -12 M18.5 -16 L28 -6.5 M23 -27 L32 -17" fill="none" stroke="#2b2b3a" stroke-width="0.9" opacity="0.55"/>
+  <!-- Goalie stick held at the right: a long shaft and a big, wide head (a goalie's basket is much
+       bigger than a field player's) with a mesh pocket. -->
+  <path d="M11 32 L23 0" fill="none" stroke="#2b2b3a" stroke-width="6.2" stroke-linecap="round"/>
+  <path d="M11 32 L23 0" fill="none" stroke="#c98f4a" stroke-width="3.6" stroke-linecap="round"/>
+  <path d="M23 0 C8 -3 5 -23 14 -30 L29 -30 C32 -19 30 -6 23 0 Z" fill="#e9ecf4" stroke="#2b2b3a" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M12 -25 L28 -6 M9.5 -15 L24 -1.5 M18 -29 L29.5 -15 M8 -6.5 L16 -0.5 M22 -29 L20 -3" fill="none" stroke="#2b2b3a" stroke-width="0.9" opacity="0.55"/>
 </svg>
