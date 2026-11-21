@@ -33,11 +33,14 @@ DESKTOP = {"width": 1100, "height": 700}
 PHONE = {"width": 390, "height": 760}
 
 
+def is_generated(path: Path) -> bool:
+    """Files that can appear under src/ on one machine and not another (installs, caches)."""
+    return any(part == "__pycache__" or part.endswith(".egg-info") for part in path.parts)
+
+
 def source_hash() -> str:
     """Hash of every file that can change what the page looks like."""
-    files = sorted(
-        p for p in (ROOT / "src").rglob("*") if p.is_file() and "__pycache__" not in p.parts
-    )
+    files = sorted(p for p in (ROOT / "src").rglob("*") if p.is_file() and not is_generated(p))
     files.append(ROOT / "scripts" / "build.py")
     digest = hashlib.sha256()
     for path in files:
