@@ -1,0 +1,36 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e '.[dev]'
+      - run: python -m playwright install --with-deps chromium
+      - name: Build
+        run: make build PY=python
+      - name: Lint
+        run: make lint PY=python
+      - name: Test
+        run: make test PY=python
+      - name: Attach the single-file build to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp dist/index.html visual-lax-drills.html
+          gh release create "$GITHUB_REF_NAME" visual-lax-drills.html \
+            --title "$GITHUB_REF_NAME" --generate-notes

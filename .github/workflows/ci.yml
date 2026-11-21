@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e '.[dev]'
+      - run: python -m playwright install --with-deps chromium
+      - name: Build
+        run: make build PY=python
+      - name: Lint
+        run: make lint PY=python
+      - name: Test
+        run: make test PY=python
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-artifacts
+          path: test-artifacts/
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/index.html
+
+  # Merges to main publish the site with GitHub's own Pages actions. In the repository settings,
+  # Pages > Build and deployment > Source must be "GitHub Actions". The artifact upload and the
+  # deploy are separate jobs so the uploaded artifact is visible before deploy-pages looks for it.
+  pages-artifact:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: pages-artifact
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

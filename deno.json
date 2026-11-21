@@ -1,0 +1,13 @@
+{
+  "lint": {
+    "include": ["src/js"],
+    "rules": {
+      "tags": ["recommended"],
+      "exclude": ["no-window", "no-window-prefix"]
+    }
+  },
+  "fmt": {
+    "include": ["src/js"],
+    "lineWidth": 110
+  }
+}

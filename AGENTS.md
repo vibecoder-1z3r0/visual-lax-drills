@@ -30,7 +30,7 @@ Python is dev tooling only (build script, Playwright tests).
   user's `many-game-show` and `many-board` projects. How those are structured is not yet known; see
   Open items.
 
-## Architecture (planned)
+## Architecture
 - `src/` is bundled by `scripts/build.py` into `dist/index.html` (CSS, JS modules, SVG sprite, drill
   data all inlined). Icons come from `icons-custom/` when present, else `src/icons/`. A missing or
   malformed icon fails the build; icons may not contain `script`, `image`, `foreignObject`, `iframe`,
@@ -60,11 +60,11 @@ Borrowed from `the-quest-map-generator`:
   Pages must be set to "GitHub Actions" as the source in repo settings.
 
 ## Open items
-1. **Scaffold is not written yet.** The command that writes `.gitignore`, `pyproject.toml`, `deno.json`,
-   `Makefile` and the folders was blocked by AI Guardian (`ssrf_blocked`, likely because of a
-   localhost URL in a `make serve` target). Waiting on the user's decision. Then: `scripts/build.py`,
-   `scripts/lint_html.py`, `src/` (index, css, engine, field, icons, one demo drill), `tests/`,
-   `.github/workflows/`.
+1. **Scaffold: done.** Build, lint, tests, CI, two demo drills, seven placeholder chibi icons, and a
+   day/night theme switch. There is deliberately no `make serve`: the page is one static file, so open
+   `dist/index.html` directly, and the tests load it as a `file://` URL. (An earlier attempt that
+   included a localhost URL was blocked by AI Guardian as `ssrf_blocked`.) Next: real art, more drills,
+   icon sizes (they are small next to the 60-yard field), more themes.
 2. **Session recorder:** the user wants the session recorder from `the-quest-map-generator`
    (`scripts/session_timing.py`, `scripts/session_log_header.md`, the pre-commit hook in
    `scripts/hooks/`, `SESSION_LOG.md`, `make session-log`). Not copied yet.

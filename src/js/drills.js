@@ -1,0 +1,78 @@
+// Drills are plain data. Coordinates are field yards (see constants.js). Every actor has a list of
+// keyframes {t, x, y}; an actor with a single key stands still. `team` picks the ring color
+// (a, b, or none), `color` picks a cone color.
+const k = (t, x, y) => ({ t, x, y });
+
+export const DRILLS = [
+  {
+    id: "two-man-shoot",
+    title: "Two-man pass and shoot",
+    summary: "Attackers swing the ball across the top, one cuts to the crease and finishes.",
+    duration: 6,
+    actors: [
+      { id: "goalie", kind: "goalie", team: "b", keys: [k(0, 30, 17.5), k(4.5, 30, 17.5), k(5, 28.6, 17.5)] },
+      { id: "coach", kind: "coach", team: "none", keys: [k(0, 52, 46)] },
+      { id: "a1", kind: "player", team: "a", keys: [k(0, 14, 38), k(2, 14, 38), k(3.5, 22, 26)] },
+      { id: "a2", kind: "player", team: "a", keys: [k(0, 46, 38)] },
+      {
+        id: "ball",
+        kind: "ball",
+        team: "none",
+        keys: [k(0, 14, 38), k(1, 14, 38), k(2, 46, 38), k(3, 46, 38), k(3.8, 22, 26), k(4.5, 22, 26), k(5.2, 30, 15)],
+      },
+    ],
+    captions: [
+      { t: 0, text: "Attackers set up wide at the top of the box." },
+      { t: 1, text: "A1 passes across to A2." },
+      { t: 2, text: "A1 cuts hard toward the crease." },
+      { t: 3, text: "A2 hits the cutter in stride." },
+      { t: 4.5, text: "Catch and shoot before the goalie sets." },
+      { t: 5.2, text: "Goal! Reset and rotate." },
+    ],
+  },
+  {
+    id: "cone-weave",
+    title: "Cone weave and finish",
+    summary: "Carry the ball through four cones, then shoot from the top of the crease.",
+    duration: 7,
+    actors: [
+      { id: "goalie", kind: "goalie", team: "b", keys: [k(0, 30, 17.5), k(5.5, 30, 17.5), k(6, 28.6, 17.5)] },
+      { id: "coach", kind: "coach", team: "none", keys: [k(0, 14, 44)] },
+      { id: "c1", kind: "cone", team: "none", color: "orange", keys: [k(0, 30, 46)] },
+      { id: "c2", kind: "cone", team: "none", color: "yellow", keys: [k(0, 30, 40)] },
+      { id: "c3", kind: "cone", team: "none", color: "blue", keys: [k(0, 30, 34)] },
+      { id: "c4", kind: "cone", team: "none", color: "pink", keys: [k(0, 30, 28)] },
+      { id: "bag", kind: "ballbag", team: "none", keys: [k(0, 22, 52)] },
+      {
+        id: "p1",
+        kind: "player",
+        team: "a",
+        keys: [k(0, 30, 52), k(1, 36, 46), k(2, 24, 40), k(3, 36, 34), k(4, 24, 28), k(5, 30, 22)],
+      },
+      {
+        id: "ball",
+        kind: "ball",
+        team: "none",
+        keys: [
+          k(0, 31.6, 51.2),
+          k(1, 37.6, 45.2),
+          k(2, 25.6, 39.2),
+          k(3, 37.6, 33.2),
+          k(4, 25.6, 27.2),
+          k(5, 31.6, 21.2),
+          k(5.5, 31.6, 21.2),
+          k(6.2, 30, 15),
+        ],
+      },
+    ],
+    captions: [
+      { t: 0, text: "Start behind the cones with the ball in your stick." },
+      { t: 1, text: "Push past the first cone on the right." },
+      { t: 2, text: "Cut left around the second cone." },
+      { t: 3, text: "Back to the right for the third." },
+      { t: 4, text: "Left around the fourth and head for the crease." },
+      { t: 5.4, text: "Shoot!" },
+      { t: 6.4, text: "Goal. Reset and go again." },
+    ],
+  },
+];

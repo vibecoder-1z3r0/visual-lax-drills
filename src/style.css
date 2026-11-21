@@ -1,0 +1,239 @@
+/* Themes are sets of custom properties on <html data-theme="...">. Add a block to add a theme. */
+:root,
+[data-theme="day"] {
+  --bg: #f4f1ea;
+  --panel: #ffffff;
+  --text: #1d2433;
+  --muted: #5b6475;
+  --border: #d5d0c4;
+  --accent: #2e6fdb;
+  --accent-text: #ffffff;
+  --grass-a: #6dbb5a;
+  --grass-b: #62b050;
+  --surround: #cfe6c6;
+  --field-line: #ffffff;
+  --crease-fill: rgba(255, 255, 255, 0.22);
+  --team-a: #e5484d;
+  --team-b: #3b82f6;
+  --ball: #ff8a1f;
+}
+
+[data-theme="night"] {
+  --bg: #12161f;
+  --panel: #1b2130;
+  --text: #e8ecf5;
+  --muted: #9aa5bd;
+  --border: #2d3548;
+  --accent: #6aa3ff;
+  --accent-text: #0b1020;
+  --grass-a: #2f6b3a;
+  --grass-b: #2a6034;
+  --surround: #1a2a20;
+  --field-line: #cfd8e6;
+  --crease-fill: rgba(255, 255, 255, 0.1);
+  --team-a: #ff6b70;
+  --team-b: #6aa3ff;
+  --ball: #ffa94d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+#topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  padding: 0.75rem 1rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+#topbar h1 {
+  margin: 0 auto 0 0;
+  font-size: 1.25rem;
+}
+
+.ver {
+  font-size: 0.7rem;
+  font-weight: normal;
+  color: var(--muted);
+}
+
+.pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+select,
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.7rem;
+}
+
+button {
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+  min-width: 5.5rem;
+  font-weight: 600;
+}
+
+#app {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  gap: 1rem;
+  padding: 1rem;
+  max-width: 78rem;
+  margin: 0 auto;
+}
+
+#stage {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.5rem;
+}
+
+#field {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 80vh;
+}
+
+#panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+  align-self: start;
+}
+
+#panel h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.15rem;
+}
+
+#summary {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+}
+
+#caption {
+  min-height: 3em;
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid var(--accent);
+  background: var(--bg);
+  border-radius: 0 6px 6px 0;
+}
+
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+#scrub {
+  flex: 1 1 100%;
+  accent-color: var(--accent);
+}
+
+.time {
+  margin-right: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+/* Field */
+.field-surround {
+  fill: var(--surround);
+}
+
+.field-grass-a {
+  fill: var(--grass-a);
+}
+
+.field-grass-b {
+  fill: var(--grass-b);
+}
+
+.field-line {
+  fill: none;
+  stroke: var(--field-line);
+  stroke-width: 0.25;
+}
+
+.crease {
+  fill: var(--crease-fill);
+  stroke: var(--field-line);
+  stroke-width: 0.2;
+}
+
+.field-label {
+  fill: var(--muted);
+  font-size: 1.3px;
+  text-anchor: middle;
+}
+
+/* Actors. Teams set --team, which the icons use for their ring. */
+.team-a {
+  --team: var(--team-a);
+}
+
+.team-b {
+  --team: var(--team-b);
+}
+
+.cone-orange {
+  color: #ff7a1a;
+}
+
+.cone-yellow {
+  color: #f2c40f;
+}
+
+.cone-blue {
+  color: #2f8fe8;
+}
+
+.cone-pink {
+  color: #ff5fa8;
+}
+
+.cone-green {
+  color: #3cc46a;
+}
+
+@media (max-width: 52rem) {
+  #app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto;
+  }
+}
