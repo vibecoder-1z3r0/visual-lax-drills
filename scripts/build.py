@@ -28,6 +28,7 @@ JS_ORDER = [
     "engine",
     "keepaway_data",
     "oddman_data",
+    "niagara_data",
     "drills",
     "takes",
     "render",

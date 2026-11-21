@@ -36,6 +36,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "src" / "js" / "keepaway_data.js"
 OUT_ODD = ROOT / "src" / "js" / "oddman_data.js"
+OUT_NIAGARA = ROOT / "src" / "js" / "niagara_data.js"
 TAKES_DIR = ROOT / "src" / "takes"
 
 # ---- the field and the people --------------------------------------------------------------
@@ -58,6 +59,17 @@ FIRST = 2.8  # the front player's distance from the cone
 KEEP_ZONE = (17.8, 43.2, 24.0, 48.0)  # x0, x1, y0, y1: where keep-away happens
 ODD_ZONE = (17.8, 43.2, 18.0, 48.0)  # odd man, offense/defense reaches toward the goal
 ZONE = KEEP_ZONE
+NIAGARA_ZONE = (17.8, 43.2, 18.0, 46.5)  # Niagara: the same, but the lines are far back
+LAYOUT = "sideline"  # "sideline" (keep away, Syracuse) or "niagara" (lines behind the 35)
+# Niagara: the cone and coach are in the middle of the field 35 yards back from the goal line
+# extended (y = 15 + 35 = 50), the coach just behind the cone. The lines wait behind the 35 yard
+# line, red to the west of the cone and blue to the east.
+CONE_N = (30.0, 50.0)
+COACH_N = (30.0, 51.7)
+LINE_N = 52.8
+FIRST_N, SLOT_N = 3.3, 3.0
+BALL_N = (30.0, 40.5)  # where the coach's roll stops, about ten yards up the field
+FAR = (90.0, 90.0)  # a coach who is not there is parked off the field
 KEEP_OUT = False  # True: players stay out of the crease
 GOAL = (30.0, 15.0)
 GOAL_KEEP = 4.2  # players stay this far from the middle of the goal
@@ -96,9 +108,9 @@ def lerp(a, b, u):
     return (a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u)
 
 
-def use_zone(zone, keep_out):
-    global ZONE, KEEP_OUT
-    ZONE, KEEP_OUT = zone, keep_out
+def use_zone(zone, keep_out, layout="sideline"):
+    global ZONE, KEEP_OUT, LAYOUT
+    ZONE, KEEP_OUT, LAYOUT = zone, keep_out, layout
 
 
 def clamp_zone(p, margin=0.0):
@@ -143,6 +155,9 @@ class Player:
 
 
 def slot_pos(team, slot):
+    if LAYOUT == "niagara":
+        sign = -1 if team == "a" else 1  # red west of the cone, blue east
+        return (CONE_N[0] + sign * (FIRST_N + SLOT_N * slot), LINE_N)
     if team == "a":
         return (QUEUE_X, LINE_Y + FIRST + SLOT * slot)
     return (QUEUE_X, LINE_Y - FIRST - SLOT * slot)
@@ -163,7 +178,12 @@ class Round:
         self.spec = spec
         self.offense = spec.get("mode") == "offense"
         self.has_goalie = bool(spec.get("goalie", False))  # a goalie is optional
-        use_zone(ODD_ZONE if self.offense else KEEP_ZONE, self.offense)
+        self.niagara = spec.get("layout") == "niagara"
+        if self.niagara:
+            use_zone(NIAGARA_ZONE, True, "niagara")
+        else:
+            use_zone(ODD_ZONE if self.offense else KEEP_ZONE, self.offense)
+        self.off_team = None  # Niagara: the team that won the ground ball is on offense all round
         self.rng = random.Random(spec["seed"])
         self.players = {}
         for i in range(5):
@@ -194,9 +214,20 @@ class Round:
         self.nb_land = 0.0
         self.nb_out = (0.0, 0.0)
         self.pending: list[tuple] = []
-        self.c_cur = COACH2
-        self.c_nxt = COACH2
-        self.coach_keys = [(0.0, COACH2[0], COACH2[1])]
+        start = FAR if self.niagara else COACH2  # Niagara has no coach in the field
+        self.c_cur = start
+        self.c_nxt = start
+        self.coach_keys = [(0.0, start[0], start[1])]
+        self.reg_started = False
+        self.feed_ready = 0.0  # a returned ball is not fed out again before this time
+        self.returned = False  # the ball being fed is the one that came back, not a new one
+        self.clearing = False  # Niagara: the defense is carrying the ball out to the 35
+        self.clear_target = (0.0, 0.0)
+        self.g_hold_until = 0.0
+        self.reg_t = 0.0
+        self.release_kind = None
+        self.stage: dict[str, tuple[float, float]] = {}
+        self.feed_to: Player | None = None
         self.arrives = 0.0  # when the ball in flight reaches its receiver
         self.last_passer: Player | None = None
         self.queues = {"a": [], "b": []}
@@ -219,6 +250,8 @@ class Round:
 
     # ---- the opening: the coach's roll and the fight for the ground ball ---------------
     def opening(self):
+        if self.niagara:
+            return self.opening_niagara()
         win = self.spec["gb_winner"]
         spot_win = (BALL_SPOT[0] - POCKET[0], BALL_SPOT[1] - POCKET[1])
         slots = {pid: p.pos for pid, p in self.players.items()}
@@ -287,7 +320,92 @@ class Round:
         else:
             self.caption(2.9, f"{color} scoops it. Keep-away starts: {self.odds_text()}.")
 
+    def opening_niagara(self):
+        """Two players from each team go out for the ground ball; the winners are on offense for
+        the whole round, and their next player pops out for a free pass (3 on 2)."""
+        win = self.spec["offense"]
+        lose = "b" if win == "a" else "a"
+        self.off_team = win
+        pre = {"a": "s", "b": "n"}
+        w = [f"{pre[win]}{i}" for i in range(1, 6)]
+        d = [f"{pre[lose]}{i}" for i in range(1, 6)]
+        e = 1 if lose == "b" else -1  # the defenders come from the east (+x) when they are blue
+        spot = (BALL_N[0] - POCKET[0], BALL_N[1] - POCKET[1])
+        free = (spot[0] - e * 5.6, spot[1] - 2.6)  # where the third player takes the free pass
+        slot = {pid: p.pos for pid, p in self.players.items()}
+        pos = lambda team, k: slot_pos(team, k)  # noqa: E731
+        scripts = {
+            w[0]: [(0.0, slot[w[0]]), (0.5, slot[w[0]]), (3.2, spot), (6.2, spot)],
+            w[1]: [
+                (0.0, slot[w[1]]),
+                (0.7, slot[w[1]]),
+                (3.2, add(spot, (-0.6 * e, 3.2))),
+                (6.2, add(spot, (-0.6 * e, 3.2))),
+            ],
+            d[0]: [
+                (0.0, slot[d[0]]),
+                (0.5, slot[d[0]]),
+                (3.2, add(spot, (1.6 * e, -1.6))),
+                (6.2, add(spot, (1.2 * e, -2.8))),
+            ],
+            d[1]: [
+                (0.0, slot[d[1]]),
+                (0.7, slot[d[1]]),
+                (3.2, add(spot, (3.4 * e, 0.6))),
+                (6.2, add(spot, (2.4 * e, -1.2))),
+            ],
+        }
+        # the rest of the lines step up as the front players go; the third offensive player pops out
+        for team, ids in ((lose, d[2:]), (win, w[2:])):
+            for k, pid in enumerate(ids):
+                scripts[pid] = [(0.0, slot[pid]), (1.6, slot[pid]), (2.9, pos(team, k))]
+        scripts[w[2]] += [(3.4, pos(win, 0)), (6.2, free)]
+        scripts[w[3]] += [(4.4, pos(win, 1)), (5.8, pos(win, 0))]
+        scripts[w[4]] += [(4.4, pos(win, 2)), (5.8, pos(win, 1))]
+        for pid, keys in scripts.items():
+            p = self.players[pid]
+            p.keys = [(t, x, y) for t, (x, y) in keys]
+            p.pos = keys[-1][1]
+            p.playing = pid in (w[0], w[1], w[2], d[0], d[1])
+            p.heading = (0.0, -1.0)
+        self.queues[win] = [w[3], w[4]]
+        self.queues[lose] = [d[2], d[3], d[4]]
+        for queue in self.queues.values():
+            for k, pid in enumerate(queue):
+                self.players[pid].slot = k
+        start = (COACH_N[0], COACH_N[1] - 0.9)
+        self.ball = [
+            (0.0, start[0], start[1], 0),
+            (0.5, start[0], start[1], 0),
+            (1.9, BALL_N[0], BALL_N[1], 1),
+            (3.2, BALL_N[0], BALL_N[1], 0),
+            (5.4, BALL_N[0], BALL_N[1], 0),
+            (6.2,) + self.ball_xy_at(free) + (0,),
+        ]
+        self.carrier = self.players[w[2]]
+        self.t = 6.2
+        self.shot_ready = max(self.shot_ready, 7.5)
+        names = {"a": "Red", "b": "Blue"}
+        self.caption(
+            0,
+            "Red lines up west of the cone and blue east of it, behind the 35-yard line. The "
+            "coach and cone are in the middle of the field.",
+        )
+        self.say(0.5, 1.8, "coach", "Ground ball!")
+        self.caption(0.6, "The coach rolls a ball about ten yards up the field.")
+        self.caption(1.0, "Two players from each team go out and fight for it.")
+        self.caption(
+            3.2,
+            f"{names[win]} wins the ground ball, so {names[win].lower()} is on offense for the "
+            "whole round.",
+        )
+        self.caption(3.6, f"The next {names[win].lower()} player pops out for a free pass.")
+        self.caption(6.2, f"Free pass! Now it is {self.odds_text()}.")
+
     def odds_text(self):
+        if self.niagara:
+            off = len(self.playing(self.off_team))
+            return f"{off} on {len(self.playing()) - off}"
         s, n = len(self.playing("a")), len(self.playing("b"))
         return f"{s} red against {n} blue, so blue is a player down"
 
@@ -296,7 +414,8 @@ class Round:
         t = self.t
         self.handle_events(t)
         in_play = self.playing()
-        self.move_coach(in_play)
+        if not self.niagara:
+            self.move_coach(in_play)
         carrier = self.carrier
         loose = carrier is None
         nxt: dict[str, tuple[float, float]] = {}
@@ -317,21 +436,39 @@ class Round:
                     if dist(nxt[pid], ahead) < SLOT - 0.15:
                         nxt[pid] = p.pos
 
+        if self.nb_phase == "regroup" and not self.reg_started and t + 1e-9 >= self.reg_t:
+            self.begin_regroup(t)
+        if (
+            self.nb_phase == "regroup"
+            and self.reg_started
+            and t >= self.reg_t + 2.0
+            and not self.clearing
+            and t >= self.feed_ready
+            and all(dist(q.pos, self.stage[q.id]) < 0.3 for q in in_play)
+        ):
+            self.feed(t)
         if self.nb_phase == "reset" and t + 1e-9 >= self.reset_t:
             self.start_reset()
         if loose and self.nb_phase == "out" and t + 1e-9 >= self.nb_roll_t:
             self.roll_new_ball(t)
-        if loose and self.nb_phase in ("out", "reset"):
+        if self.nb_phase == "regroup" and self.reg_started:
+            for p in in_play:  # everyone walks back to the middle for the next ball
+                goal = (
+                    self.clear_target if self.clearing and p is self.carrier else self.stage[p.id]
+                )
+                nxt[p.id] = self.steer(p, goal, V_RUN * 0.85)
+        elif loose and self.nb_phase in ("out", "reset", "regroup", "feeding"):
             for p in in_play:  # play is stopped while the coach gets a new ball
                 nxt[p.id] = p.pos
         elif self.nb_phase == "resetting":
             for p in in_play:  # everyone walks back to the end of their line
                 goal = self.reset_targets[p.id]
                 # come in from the field side so nobody has to cut through the line
-                if p.id not in self.reset_in and dist(p.pos, (17.5, goal[1])) < 0.6:
+                way = (goal[0], 46.8) if self.niagara else (17.5, goal[1])
+                if p.id not in self.reset_in and dist(p.pos, way) < 0.6:
                     self.reset_in.add(p.id)
                 if p.id not in self.reset_in:
-                    goal = (17.5, goal[1])
+                    goal = way
                 nxt[p.id] = self.steer(p, goal, V_RUN * 0.8)
         elif loose:
             self.chase_loose(t, nxt)
@@ -350,6 +487,15 @@ class Round:
         self.separate(nxt)
         self.check_between(nxt)
 
+        # a coach's free ball has reached the player it was fed to
+        if loose and self.nb_phase == "feeding" and t + DT + 1e-9 >= self.nb_land:
+            self.carrier = self.feed_to
+            self.nb_phase = None
+            self.hold = 0
+            self.last_passer = None
+            self.shot_ready = t + 3.0
+            self.caption(t + 1.0, "The offense goes again.")
+
         # a new ball has been scooped up
         if loose and self.nb_phase == "rolling" and t + DT + 1e-9 >= self.nb_land:
             near = min(in_play, key=lambda q: dist(pocket_of(nxt[q.id]), self.loose_spot))
@@ -358,7 +504,7 @@ class Round:
 
         # what happens to the ball during this step
         ball_keys = [(t,) + self.ball_xy(carrier) + (0,)] if carrier else []
-        if carrier and not loose:
+        if carrier and not loose and self.nb_phase is None:
             ball_keys += self.ball_events(t, carrier, nxt)
         ball_keys += self.pending
         self.pending = []
@@ -367,6 +513,15 @@ class Round:
             p.pos = pos
             self.key(p, t + DT)
         self.move_goalie(t)
+        if self.clearing and dist(self.carrier.pos, self.clear_target) < 0.3:
+            # the ball is at the 35 yard line: the coach takes it
+            self.clearing = False
+            rest = pocket_of(self.carrier.pos)
+            self.nb_out = rest
+            self.carrier = None
+            self.feed_ready = t + DT + 0.5
+            self.pending.append((t + DT, rest[0], rest[1], 1))
+            self.caption(t + DT, "The ball is at the 35 yard line, so the coach takes it.")
         if self.nb_phase == "resetting" and all(
             dist(self.players[pid].pos, goal) < 0.3 for pid, goal in self.reset_targets.items()
         ):
@@ -377,6 +532,9 @@ class Round:
 
     def move_goalie(self, t):
         if not self.has_goalie:
+            return
+        if t < self.g_hold_until - 1e-9 and not self.g_dive:  # he has the ball: stand still
+            self.g_keys.append((t + DT, self.g_pos[0], self.g_pos[1]))
             return
         if self.g_dive:  # a dive for a shot: the keys were worked out with the shot
             self.g_keys += self.g_dive
@@ -583,7 +741,9 @@ class Round:
         d = dist(carrier.pos, GOAL)
         if not SHOT_MIN <= d <= SHOT_MAX:
             return None
-        outcome, after = shots[self.shot_i]
+        outcome, after = shots[self.shot_i][:2]
+        if outcome == "takeaway":
+            return None
         if outcome == "save" and not self.has_goalie:
             raise SystemExit(f"{self.spec['id']}: a save needs a goalie")
         start = pocket_of(carrier.pos)
@@ -593,7 +753,7 @@ class Round:
         elif outcome == "save":
             aim = add(self.g_pos, (side * 0.3, -0.2), 1.0)
         else:  # wide: the ball skips past the post and rolls behind the net
-            aim = (GOAL[0] + side * 7.0, 7.8)
+            aim = (GOAL[0] + side * 7.0, 12.0 if self.niagara else 7.8)
         lane = min((seg_dist(q.pos, start, aim) for q in defence), default=9.0)
         if lane < 1.0:
             return None
@@ -623,6 +783,79 @@ class Round:
             self.g_dive = [(t + tau, dive[0], dive[1]), (t + DT, dive[0], dive[1])]
         end = keys[-1][0]
         self.stop_play(t, end, rest, after)
+        if self.niagara and outcome == "save":
+            self.goalie_clear(end, dive)  # the goalie throws it back to the coach
+        return keys
+
+    def goalie_clear(self, t_have, pos):
+        """The goalie has the ball (a save, or a pass back): after a moment he throws it back to
+        the coach at the cone, and the offense starts again."""
+        hand = (COACH_N[0], COACH_N[1] - 0.9)
+        tau = max(1.6, dist(pos, hand) / 18.0)
+        self.pending += [
+            (t_have + 1.0, pos[0], pos[1], 0),
+            (t_have + 1.0 + tau, hand[0], hand[1], 0),
+        ]
+        self.g_hold_until = t_have + 1.0
+        self.nb_out = hand
+        self.returned = True
+        self.feed_ready = t_have + 1.0 + tau + 0.4
+        self.caption(t_have + 0.5, "The goalie has it and throws it back to the coach at the cone.")
+
+    def try_takeaway(self, t, carrier, defence, nxt):
+        """The defense wins the ball. With a goalie they pass it back to him; without one they get
+        it out to the 35 yard line (carrying it, or passing it to a coach)."""
+        entry = (
+            self.spec.get("shots", [])[self.shot_i]
+            if self.shot_i < len(self.spec.get("shots", []))
+            else None
+        )
+        if not entry or entry[0] != "takeaway" or t < self.shot_ready:
+            return None
+        d = self.on_ball
+        if d is None or d not in defence:
+            return None
+        if dist(self.pos_at(d, nxt, 0.6), self.pos_at(carrier, nxt, 0.6)) >= 2.6:
+            return None
+        after, route = entry[1], entry[2]
+        if route == "goalie" and not self.has_goalie:
+            raise SystemExit(f"{self.spec['id']}: a pass back to the goalie needs a goalie")
+        at = pocket_of(self.pos_at(d, nxt, 0.6))
+        keys = [(t + 0.6, at[0], at[1], 0)]
+        name = "Red" if d.team == "a" else "Blue"
+        self.shot_i += 1
+        self.last_passer = carrier
+        self.carrier = None
+        hand = (COACH_N[0], COACH_N[1] - 0.9)
+        if route == "goalie":
+            gp = self.g_pos
+            tau = max(0.8, dist(at, gp) / 18.0)
+            keys.append((t + 0.6 + tau, gp[0], gp[1], 0))
+            self.caption(t, f"{name} takes the ball away and passes it back to the goalie.")
+            self.g_hold_until = t + 0.6 + tau + 1.0
+            self.goalie_clear(t + 0.6 + tau, gp)
+        elif route == "coach":
+            tau = max(1.4, dist(at, hand) / 16.0)
+            keys.append((t + 0.6 + tau, hand[0], hand[1], 0))
+            self.nb_out = hand
+            self.returned = True
+            self.feed_ready = t + 0.6 + tau + 0.4
+            self.caption(t, f"{name} takes the ball away and passes it to the coach instead.")
+        else:  # carry it out to the 35 yard line
+            self.carrier = d
+            self.clearing = True
+            side = 1 if d.pos[0] >= CONE_N[0] else -1
+            self.clear_target = (CONE_N[0] + side * 2.6, CONE_N[1] - 0.4)
+            self.returned = True
+            self.caption(t, f"{name} takes the ball away and carries it out to the 35 yard line.")
+        self.nb_phase = "regroup"
+        self.reg_t = t + DT - 1e-6
+        self.reg_started = False
+        self.release_kind = {
+            "new_ball": None,
+            "new_ball_release": "both",
+            "new_ball_release_defense": "defense",
+        }[after]
         return keys
 
     def stop_play(self, t, end, rest, after):
@@ -635,16 +868,67 @@ class Round:
             self.caption(
                 self.reset_t, 'The coach calls "Reset!" and everyone goes back to the lines.'
             )
+        elif self.niagara:
+            # everyone walks back to the middle, then a coach feeds the offensive player nearest
+            # the 35 yard line a free ball (with a release first if the round says so)
+            self.nb_phase = "regroup"
+            self.reg_t = end + 0.6
+            self.reg_started = False
+            self.release_kind = {
+                "new_ball": None,
+                "new_ball_release": "both",
+                "new_ball_release_defense": "defense",
+            }[after]
         else:
             self.nb_phase = "out"
             self.nb_roll_t = end + 2.0
             self.nb_release = after == "new_ball_release"
 
+    def begin_regroup(self, t):
+        """Niagara: after the release (if any) everyone goes to a spot in the middle."""
+        self.reg_started = True
+        if self.release_kind:
+            self.do_release(t, self.release_kind)
+        off = sorted(self.playing(self.off_team), key=lambda q: q.pos[0])
+        dfn = sorted((q for q in self.playing() if q.team != self.off_team), key=lambda q: q.pos[0])
+        self.stage = {}
+        for i, q in enumerate(off):
+            self.stage[q.id] = (CONE_N[0] + (i - (len(off) - 1) / 2) * 5.5, 37.0)
+        for i, q in enumerate(dfn):
+            self.stage[q.id] = (CONE_N[0] + (i - (len(dfn) - 1) / 2) * 5.0, 32.5)
+        self.caption(t + 0.3, "Everyone gets back to the middle for the next ball.")
+
+    def feed(self, t):
+        """A coach gives the offensive player nearest the coach a free ball."""
+        off = self.playing(self.off_team)
+        to = min(off, key=lambda q: abs(q.pos[0] - CONE_N[0]))
+        start = (COACH_N[0], COACH_N[1] - 0.9)
+        end = pocket_of(to.pos)
+        tau = max(0.8, dist(start, end) / 17.0)
+        self.feed_to = to
+        self.nb_land = t + tau
+        self.nb_phase = "feeding"
+        self.pending += [
+            (t - 0.05, self.nb_out[0], self.nb_out[1], 1),
+            (t, start[0], start[1], 0),
+            (t + tau, end[0], end[1], 0),
+        ]
+        said = "Ball in!" if self.returned else "New ball!"
+        self.returned = False
+        self.say(t, 1.6, "coach", said)
+        self.caption(
+            t,
+            f'The coach says "{said}" and gives the offensive player nearest the 35 a free ball.',
+        )
+
     def start_reset(self):
         """Everyone playing walks back to the end of their line."""
         for team in ("a", "b"):
             back = [p for p in self.playing(team)]
-            back.sort(key=lambda q: q.pos[1], reverse=(team == "b"))
+            if self.niagara:  # the one nearest the cone takes the first spot
+                back.sort(key=lambda q: q.pos[0], reverse=(team == "a"))
+            else:
+                back.sort(key=lambda q: q.pos[1], reverse=(team == "b"))
             for k, p in enumerate(back):
                 self.reset_targets[p.id] = slot_pos(team, len(self.queues[team]) + k)
         self.nb_phase = "resetting"
@@ -744,6 +1028,10 @@ class Round:
                     f"from {loser}.",
                 )
                 return keys
+        if self.niagara:
+            lost = self.try_takeaway(t, carrier, defence, nxt)
+            if lost:
+                return lost
         if self.offense:
             shot = self.try_shot(t, carrier, defence)
             if shot:
@@ -863,7 +1151,9 @@ class Round:
                     moved = True
                 nxt[p.id] = (
                     clamp_zone(nxt[p.id])
-                    if p.playing and self.nb_phase != "resetting"
+                    if p.playing
+                    and self.nb_phase != "resetting"
+                    and not (self.clearing and p is self.carrier)
                     else nxt[p.id]
                 )
                 # nobody is faster than a player can be
@@ -923,8 +1213,10 @@ class Round:
             self.separate(nxt)
 
     # ---- the clock -----------------------------------------------------------------------
-    def do_release(self, t, with_whistle=True):
-        """The next player from each line joins; the coach at the cone calls it."""
+    def do_release(self, t, kind="both", with_whistle=True):
+        """The next players join; the coach at the cone calls it."""
+        if self.niagara:
+            return self.release_niagara(t, kind, with_whistle)
         if len(self.playing("a")) >= 5 or len(self.playing("b")) >= 4:
             return False  # 5 against 4 is the most
         for team in ("a", "b"):
@@ -935,12 +1227,45 @@ class Round:
             self.say(t, 1.6, "coach", "Release!")
         return True
 
+    def release_niagara(self, t, kind, with_whistle):
+        """Niagara: a coach releases the next two (one each), or just a defender to make it even.
+        Offense is never more than one player up, and defense only ever gets to even."""
+        off, dfn = self.off_team, ("b" if self.off_team == "a" else "a")
+        teams = {"both": [off, dfn], "defense": [dfn], "offense": [off]}[kind]
+        if any(not self.queues[team] for team in teams):
+            return False
+        n_off = len(self.playing(off)) + (off in teams)
+        n_def = len(self.playing(dfn)) + (dfn in teams)
+        if n_off > n_def + 1 or n_def > n_off:
+            raise SystemExit(
+                f"{self.spec['id']}: {n_off} on {n_def} breaks the release rules (offense at "
+                "most one up, defense at most even)"
+            )
+        for team in teams:
+            self.players[self.queues[team].pop(0)].playing = True
+        text = {"both": "Release!", "defense": "Release a defender!", "offense": "Release one!"}[
+            kind
+        ]
+        if with_whistle:
+            self.say(t, 1.6, "coach", text)
+        who = {
+            "both": "The next player from each team joins",
+            "defense": "The next defender joins to make it even",
+            "offense": "The next offensive player joins",
+        }[kind]
+        self.caption(t, f'The coach calls "{text}" {who}: now {n_off} on {n_def}.')
+        return True
+
     def handle_events(self, t):
         spec = self.spec
-        for i, when in enumerate(spec.get("releases", [])):
+        for i, rel in enumerate(spec.get("releases", [])):
+            when, kind = rel if isinstance(rel, (tuple, list)) else (rel, "both")
             if self.released > i or t + 1e-9 < when:
                 continue
             self.released = i + 1
+            if self.niagara:  # the release explains itself in the captions
+                self.do_release(t, kind)
+                continue
             self.do_release(t)
             self.caption(
                 t,
@@ -1077,17 +1402,28 @@ class Round:
                     out.append(row)
             return out
 
+        coach_at, cone_at = (COACH_N, CONE_N) if self.niagara else (COACH, CONE)
         actors = [
-            {"id": "coach", "kind": "coach", "team": "none", "keys": [[0, COACH[0], COACH[1]]]},
-            {"id": "coach2", "kind": "coach", "team": "none", "keys": keys(self.coach_keys)},
+            {
+                "id": "coach",
+                "kind": "coach",
+                "team": "none",
+                "keys": [[0, coach_at[0], coach_at[1]]],
+            },
+        ]
+        if not self.niagara:
+            actors.append(
+                {"id": "coach2", "kind": "coach", "team": "none", "keys": keys(self.coach_keys)}
+            )
+        actors.append(
             {
                 "id": "cone",
                 "kind": "cone",
                 "team": "none",
                 "color": "orange",
-                "keys": [[0, CONE[0], CONE[1]]],
-            },
-        ]
+                "keys": [[0, cone_at[0], cone_at[1]]],
+            }
+        )
         for pid in [f"s{i}" for i in range(1, 6)] + [f"n{i}" for i in range(1, 6)]:
             p = self.players[pid]
             actors.append({"id": pid, "kind": "player", "team": p.team, "keys": keys(p.keys)})
@@ -1263,6 +1599,167 @@ ODD_ROUNDS = [
 ]
 
 
+# Niagara. The cone and coach are in the middle, 35 yards back from the goal line extended, the
+# lines wait behind the 35 yard line. Two from each team fight for a ground ball; the winners are on
+# offense for the whole round and their next player pops out for a free pass, so it is 3 on 2.
+# After a shot a coach gives the offensive player nearest the 35 a free ball ("new_ball"), with a
+# release of the next two ("new_ball_release") or of one defender to make it even
+# ("new_ball_release_defense"), or calls "reset". Offense is never more than one player up and the
+# defense only gets to even strength, until all five are out.
+NIAGARA_ROUNDS = [
+    {
+        "id": "standard",
+        "name": "Standard round: releases until all five are out",
+        "summary": (
+            "Red wins the ground ball and is on offense all round, 3 on 2 after the free pass. "
+            "After each shot a coach feeds the top offensive player a new ball and releases the "
+            "next two (4 on 3, then 5 on 4), then one defender to make it 5 on 5, and resets."
+        ),
+        "mode": "offense",
+        "layout": "niagara",
+        "goalie": True,
+        "offense": "a",
+        "seeds": [3, 1, 6, 2, 4],
+        "hold": 2,
+        "shots": [
+            ("goal", "new_ball_release"),
+            ("save", "new_ball_release"),
+            ("goal", "new_ball_release_defense"),
+            ("goal", "reset"),
+        ],
+    },
+    {
+        "id": "defender-first",
+        "name": "A defender released first to make it even",
+        "summary": (
+            "After the first shot a coach releases just a defender, so it is 3 on 3, then the "
+            "next two twice more (4 on 4, 5 on 5) before the reset."
+        ),
+        "mode": "offense",
+        "layout": "niagara",
+        "goalie": True,
+        "offense": "a",
+        "seeds": [4, 1, 3, 6, 2],
+        "hold": 2,
+        "shots": [
+            ("goal", "new_ball_release_defense"),
+            ("wide", "new_ball_release"),
+            ("save", "new_ball_release"),
+            ("goal", "reset"),
+        ],
+    },
+    {
+        "id": "goal-reset",
+        "name": "A goal, then reset",
+        "summary": "Red wins the ground ball, scores 3 on 2, and the coach calls reset.",
+        "mode": "offense",
+        "layout": "niagara",
+        "goalie": True,
+        "offense": "a",
+        "seeds": [1, 2, 3, 4, 5],
+        "hold": 2,
+        "shots": [("goal", "reset")],
+    },
+    {
+        "id": "blue-offense",
+        "name": "Blue wins the ground ball",
+        "summary": (
+            "Blue wins the ground ball, so blue is on offense for the whole round, with a new "
+            "ball and a release after each shot."
+        ),
+        "mode": "offense",
+        "layout": "niagara",
+        "goalie": True,
+        "offense": "b",
+        "seeds": [2, 4, 3, 6, 1],
+        "hold": 2,
+        "shots": [
+            ("save", "new_ball_release"),
+            ("goal", "new_ball_release"),
+            ("goal", "reset"),
+        ],
+    },
+    {
+        "id": "no-goalie",
+        "name": "Without a goalie",
+        "summary": (
+            "A goalie is optional. With none, the shots are goals and misses, and the releases "
+            "go the same way."
+        ),
+        "mode": "offense",
+        "layout": "niagara",
+        "goalie": False,
+        "offense": "a",
+        "seeds": [1, 5, 2, 4, 6],
+        "hold": 2,
+        "shots": [
+            ("goal", "new_ball_release"),
+            ("wide", "new_ball_release"),
+            ("goal", "new_ball_release_defense"),
+            ("goal", "reset"),
+        ],
+    },
+    {
+        "id": "takeaway-goalie",
+        "name": "The defense takes it away: back to the goalie",
+        "summary": (
+            "The defense wins the ball and passes it back to its goalie. The goalie throws it to "
+            "the coach at the cone and the offense starts again with a free ball. A save ends the "
+            "same way."
+        ),
+        "mode": "offense",
+        "layout": "niagara",
+        "goalie": True,
+        "offense": "a",
+        "seeds": [4, 5, 6, 3, 1],
+        "hold": 2,
+        "shots": [
+            ("takeaway", "new_ball_release", "goalie"),
+            ("save", "new_ball_release"),
+            ("goal", "reset"),
+        ],
+    },
+    {
+        "id": "takeaway-carry",
+        "name": "No goalie: the defense carries it to the 35",
+        "summary": (
+            "With no goalie the defense has to get the ball out to the 35 yard line. A defender "
+            "takes it away and carries it out, the coach takes it, and the offense starts again."
+        ),
+        "mode": "offense",
+        "layout": "niagara",
+        "goalie": False,
+        "offense": "a",
+        "seeds": [6, 4, 3, 5, 2],
+        "hold": 2,
+        "shots": [
+            ("takeaway", "new_ball_release", "carry"),
+            ("goal", "new_ball_release"),
+            ("goal", "reset"),
+        ],
+    },
+    {
+        "id": "takeaway-coach",
+        "name": "No goalie: the defense passes it to the coach",
+        "summary": (
+            "With no goalie, a coach with a stick can take the pass: a defender takes the ball "
+            "away and passes it to the coach at the cone, and the offense starts again."
+        ),
+        "mode": "offense",
+        "layout": "niagara",
+        "goalie": False,
+        "offense": "a",
+        "seeds": [6, 5, 4, 3, 1],
+        "hold": 2,
+        "shots": [
+            ("takeaway", "new_ball_release", "coach"),
+            ("goal", "new_ball_release"),
+            ("goal", "reset"),
+        ],
+    },
+]
+
+
 def format_take(seed, r, pad):
     """One take as JavaScript object text. Used inline and in the take files."""
     lines = [f"{pad}{{", f"{pad}  seed: {seed},", f"{pad}  duration: {r['duration']},"]
@@ -1324,6 +1821,7 @@ def render_file(const, rounds, intro, drill_id):
 OUTPUTS = [
     (OUT, "KEEP_AWAY_VARIANTS", ROUNDS, "Keep away.", "keep-away"),
     (OUT_ODD, "ODD_MAN_VARIANTS", ODD_ROUNDS, "Odd man, offense/defense.", "odd-man"),
+    (OUT_NIAGARA, "NIAGARA_VARIANTS", NIAGARA_ROUNDS, "Niagara.", "niagara"),
 ]
 
 
