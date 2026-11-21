@@ -27,7 +27,7 @@ DRILL_SHOTS = [
     ("cone-weave", 3.2),
     ("catch-and-throw", 1.6),
 ]
-THEMES = ["day", "night", "stadium", "stage", "bright", "field"]
+THEMES = ["day", "night", "stadium", "stage", "bright", "navy", "gold", "field"]
 THEME_SHOT_DRILL = ("ground-ball-mania", 6.4)
 DESKTOP = {"width": 1100, "height": 700}
 PHONE = {"width": 390, "height": 760}
@@ -103,9 +103,9 @@ def make() -> None:
             page.locator("#stage").screenshot(path=str(path))
             tiles.append((theme, Image.open(path).convert("RGB")))
         w, h = tiles[0][1].size
-        scale = 0.42
+        scale = 0.32
         tw, th = int(w * scale), int(h * scale)
-        cols, rows, pad, label_h = 3, 2, 12, 22
+        cols, rows, pad, label_h = 4, 2, 12, 22
         sheet = Image.new(
             "RGB", (cols * tw + (cols + 1) * pad, rows * (th + label_h) + (rows + 1) * pad), "white"
         )

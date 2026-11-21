@@ -29,6 +29,8 @@ export const THEMES = [
   { id: "stadium", name: "Stadium" },
   { id: "stage", name: "Stage" },
   { id: "bright", name: "Bright" },
+  { id: "navy", name: "Navy" },
+  { id: "gold", name: "Gold" },
   { id: "field", name: "Field" },
 ];
 

@@ -28,10 +28,10 @@ out, scoops one, rolls it back to the coach on the run and rejoins the line, all
 
 ## Themes
 
-Six themes, chosen from the Theme menu and remembered between visits. Here they are on the same
+Eight themes, chosen from the Theme menu and remembered between visits. Here they are on the same
 frame:
 
-![The six themes: day, night, stadium, stage, bright and field](docs/screenshots/themes.png)
+![The eight themes: day, night, stadium, stage, bright, navy, gold and field](docs/screenshots/themes.png)
 
 ## On a phone
 
@@ -51,6 +51,7 @@ make setup        # one time: virtualenv, dev tools, Playwright's Chromium
 make build        # src/ -> dist/index.html
 make lint         # deno lint, HTML check, ruff
 make test         # Playwright (Python) tests against dist/index.html
+make serve        # serve dist/ at http://127.0.0.1:8000 (it also opens straight from disk)
 make screenshots  # remake docs/screenshots/ for this README
 ```
 

@@ -41,7 +41,7 @@ def test_drill_selector_switches_drills(page):
 
 def test_every_theme_restyles_the_page(page):
     options = page.locator("#theme option").evaluate_all("els => els.map(e => e.value)")
-    assert options == ["day", "night", "stadium", "stage", "bright", "field"]
+    assert options == ["day", "night", "stadium", "stage", "bright", "navy", "gold", "field"]
     seen = {page.evaluate("getComputedStyle(document.body).backgroundColor")}
     for theme in options[1:]:
         page.select_option("#theme", theme)
@@ -53,21 +53,10 @@ def test_every_theme_restyles_the_page(page):
 
 
 def test_theme_is_remembered_after_a_reload(page):
-    # Chromium occasionally drops a localStorage write for a file:// page when the page is reloaded
-    # right away, especially on a busy machine (measured: roughly 2% of reloads, and the value never
-    # comes back). That is the browser, not the app: the value is always there before the reload. So
-    # try the whole "pick a theme, reload" step a few times. A real bug (the theme never being saved)
-    # still fails every attempt.
-    remembered = False
-    for _ in range(5):
-        page.select_option("#theme", "field")
-        assert page.evaluate("localStorage.getItem('vldTheme')") == "field"
-        page.reload()
-        page.wait_for_function("window.LAX !== undefined")
-        if page.evaluate("document.documentElement.dataset.theme") == "field":
-            remembered = True
-            break
-    assert remembered, "the chosen theme was not remembered after any of 5 reloads"
+    page.select_option("#theme", "field")
+    page.reload()
+    page.wait_for_function("window.LAX !== undefined")
+    assert page.evaluate("document.documentElement.dataset.theme") == "field"
     assert page.locator("#theme").input_value() == "field"
 
 
