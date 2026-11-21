@@ -74,6 +74,44 @@
   --ball: #ffeb3b;
 }
 
+/* "stage" and "bright" use the UI palettes of the many-game-show project's themes of the same names
+   (--panel-2 is not used here); the grass, line and team colors are chosen here for a lacrosse field. */
+[data-theme="stage"] {
+  --bg: #05060a;
+  --panel: #12141c;
+  --text: #f2f2f5;
+  --muted: #8b8f9c;
+  --border: #2a2f3d;
+  --accent: #00e5ff;
+  --accent-text: #05060a;
+  --grass-a: #1d5230;
+  --grass-b: #184a2a;
+  --surround: #0c0e14;
+  --field-line: #f2f2f5;
+  --crease-fill: rgba(0, 229, 255, 0.14);
+  --team-a: #ff5a5f;
+  --team-b: #00e5ff;
+  --ball: #ffcc00;
+}
+
+[data-theme="bright"] {
+  --bg: #fef6e4;
+  --panel: #ffffff;
+  --text: #1b1b1b;
+  --muted: #6b6b6b;
+  --border: #f0d9b5;
+  --accent: #ff5a3c;
+  --accent-text: #1b1b1b;
+  --grass-a: #7ccb5e;
+  --grass-b: #70c053;
+  --surround: #fff1d6;
+  --field-line: #ffffff;
+  --crease-fill: rgba(255, 255, 255, 0.28);
+  --team-a: #d63a3a;
+  --team-b: #2f6fed;
+  --ball: #ff8a1f;
+}
+
 * {
   box-sizing: border-box;
 }

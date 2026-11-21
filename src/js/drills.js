@@ -1,6 +1,6 @@
 // Drills are plain data. Coordinates are field yards (see constants.js). Every actor has a list of
 // keyframes {t, x, y}; an actor with a single key stands still. `team` picks the ring color
-// (a, b, or none), `color` picks a cone color.
+// (a, b, or none), `color` picks a cone color. `goal: false` hides the goal and crease.
 const k = (t, x, y) => ({ t, x, y });
 
 export const DRILLS = [
@@ -73,6 +73,74 @@ export const DRILLS = [
       { t: 4, text: "Left around the fourth and head for the crease." },
       { t: 5.4, text: "Shoot!" },
       { t: 6.4, text: "Goal. Reset and go again." },
+    ],
+  },
+  {
+    id: "catch-and-throw",
+    title: "Catch and throw",
+    summary: "Two players stand twelve yards apart and pass the ball back and forth.",
+    duration: 8,
+    actors: [
+      { id: "coach", kind: "coach", team: "none", keys: [k(0, 30, 46)] },
+      { id: "a1", kind: "player", team: "a", keys: [k(0, 24, 38)] },
+      { id: "a2", kind: "player", team: "a", keys: [k(0, 36, 38)] },
+      {
+        id: "ball",
+        kind: "ball",
+        team: "none",
+        keys: [
+          k(0, 25.6, 37.2),
+          k(1, 25.6, 37.2),
+          k(2, 37.6, 37.2),
+          k(3, 37.6, 37.2),
+          k(4, 25.6, 37.2),
+          k(5, 25.6, 37.2),
+          k(6, 37.6, 37.2),
+          k(7, 37.6, 37.2),
+          k(8, 37.6, 37.2),
+        ],
+      },
+    ],
+    captions: [
+      { t: 0, text: "Face your partner, stick up and ready, with the ball in A1's stick." },
+      { t: 1, text: "A1 steps and throws to A2's stick." },
+      { t: 2, text: "A2 catches and cradles." },
+      { t: 3, text: "A2 throws it back." },
+      { t: 4, text: "A1 catches. Soft hands: give with the ball." },
+      { t: 5, text: "A1 throws again." },
+      { t: 6, text: "A2 catches. Keep the stick up and the target out." },
+      { t: 7, text: "Repeat, then switch to the other hand." },
+    ],
+  },
+  {
+    id: "ground-ball-mania",
+    title: "Ground ball mania",
+    goal: false,
+    summary: "The coach stands beside the cone and rolls balls out one at a time. Each player runs out from the line, scoops one, rolls it back to the coach and rejoins the line.",
+    duration: 21.0,
+    actors: [
+      { id: "coach", kind: "coach", team: "none", keys: [k(0, 35.2, 35.4)] },
+      { id: "bag", kind: "ballbag", team: "none", keys: [k(0, 37.6, 36.2)] },
+      { id: "cone", kind: "cone", team: "none", color: "orange", keys: [k(0, 30, 35.4)] },
+      { id: "p1", kind: "player", team: "a", keys: [k(0, 30, 38), k(1.0, 30, 38), k(1.9, 30, 33.5), k(2.9, 31.5, 27.2), k(3.2, 31.5, 27.2), k(4.5, 39.0, 28.0), k(5.2, 42.5, 31.0), k(7.2, 42.5, 41.6), k(7.6, 30, 41.6), k(9.2, 30, 41.6), k(9.9, 30, 38), k(11.4, 30, 38), k(12.3, 30, 33.5), k(13.3, 31.5, 27.2), k(13.6, 31.5, 27.2), k(14.9, 39.0, 28.0), k(15.6, 42.5, 31.0), k(17.6, 42.5, 45.2), k(18.0, 30, 45.2)] },
+      { id: "p2", kind: "player", team: "a", keys: [k(0, 30, 41.6), k(1.4, 30, 41.6), k(2.1, 30, 38), k(3.6, 30, 38), k(4.5, 30, 33.5), k(5.5, 32.4, 26.8), k(5.8, 32.4, 26.8), k(7.1, 39.0, 28.0), k(7.8, 42.5, 31.0), k(9.8, 42.5, 41.6), k(10.2, 30, 41.6), k(11.8, 30, 41.6), k(12.5, 30, 38), k(14.0, 30, 38), k(14.9, 30, 33.5), k(15.9, 32.4, 26.8), k(16.2, 32.4, 26.8), k(17.5, 39.0, 28.0), k(18.2, 42.5, 31.0), k(20.2, 42.5, 48.8), k(20.6, 30, 48.8)] },
+      { id: "p3", kind: "player", team: "a", keys: [k(0, 30, 45.2), k(1.4, 30, 45.2), k(2.1, 30, 41.6), k(4.0, 30, 41.6), k(4.7, 30, 38), k(6.2, 30, 38), k(7.1, 30, 33.5), k(8.1, 30.7, 27.6), k(8.4, 30.7, 27.6), k(9.7, 39.0, 28.0), k(10.4, 42.5, 31.0), k(12.4, 42.5, 41.6), k(12.8, 30, 41.6), k(14.4, 30, 41.6), k(15.1, 30, 38)] },
+      { id: "p4", kind: "player", team: "a", keys: [k(0, 30, 48.8), k(1.4, 30, 48.8), k(2.1, 30, 45.2), k(4.0, 30, 45.2), k(4.7, 30, 41.6), k(6.6, 30, 41.6), k(7.3, 30, 38), k(8.8, 30, 38), k(9.7, 30, 33.5), k(10.7, 31.9, 27.0), k(11.0, 31.9, 27.0), k(12.3, 39.0, 28.0), k(13.0, 42.5, 31.0), k(15.0, 42.5, 41.6), k(15.4, 30, 41.6)] },
+      { id: "ball", kind: "ball", team: "none", keys: [k(0, 36.2, 36.4), k(0.8, 36.2, 36.4), k(2.0, 33.1, 26.4), k(3.2, 33.1, 26.4), k(3.98, 37.6, 26.88), k(4.58, 36.2, 36.4), k(11.2, 36.2, 36.4), k(12.4, 33.1, 26.4), k(13.6, 33.1, 26.4), k(14.38, 37.6, 26.88), k(14.98, 36.2, 36.4)] },
+      { id: "ball2", kind: "ball", team: "none", keys: [k(0, 36.2, 36.4), k(3.4, 36.2, 36.4), k(4.6, 34.0, 26.0), k(5.8, 34.0, 26.0), k(6.58, 37.96, 26.72), k(7.18, 36.2, 36.4), k(13.8, 36.2, 36.4), k(15.0, 34.0, 26.0), k(16.2, 34.0, 26.0), k(16.98, 37.96, 26.72), k(17.58, 36.2, 36.4)] },
+      { id: "ball3", kind: "ball", team: "none", keys: [k(0, 36.2, 36.4), k(6.0, 36.2, 36.4), k(7.2, 32.3, 26.8), k(8.4, 32.3, 26.8), k(9.18, 37.28, 27.04), k(9.78, 36.2, 36.4)] },
+      { id: "ball4", kind: "ball", team: "none", keys: [k(0, 36.2, 36.4), k(8.6, 36.2, 36.4), k(9.8, 33.5, 26.2), k(11.0, 33.5, 26.2), k(11.78, 37.76, 26.8), k(12.38, 36.2, 36.4)] },
+    ],
+    captions: [
+      { t: 0, text: "Four players line up behind the cone. The coach stands beside the cone with the balls." },
+      { t: 0.8, text: "Coach rolls a ball up the field, about 9 yards out." },
+      { t: 1.4, text: "The first player runs through the cone and attacks the ball." },
+      { t: 2.9, text: "Scoop it: get low, stick down, and keep your feet moving through it." },
+      { t: 3.2, text: "As the player scoops, the coach is already rolling the next ball out." },
+      { t: 4.2, text: "Run clockwise past the coach, rolling the ball in on the move." },
+      { t: 5.6, text: "Jog down the outside and back to the end of the line." },
+      { t: 12.5, text: "Around again, everyone circling the same way. Field as many ground balls as you can." },
+      { t: 19.5, text: "Six ground balls in about 20 seconds. Beat that next round." },
     ],
   },
 ];

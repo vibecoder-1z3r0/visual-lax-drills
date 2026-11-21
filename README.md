@@ -4,17 +4,64 @@ Animated lacrosse drills in a single static HTML file, drawn with anime chibi st
 goalies, coaches, nets, balls, cones). Pick a drill, then play, pause, scrub, change the speed, or
 switch themes.
 
-Open `dist/index.html` in a browser after building. There is no server and no runtime dependency.
+**Live site:** <https://vibecoder-1z3r0.github.io/visual-lax-drills/> (published from `main` by the
+CI workflow; it needs Pages set to "GitHub Actions" as the source in the repository settings).
+
+![Ground ball mania: the coach beside the cone, players circling clockwise to scoop rolled balls](docs/screenshots/ground-ball-mania.png)
+
+*Ground ball mania: the coach stands beside the cone and rolls balls up the field. Each player runs
+out, scoops one, rolls it back to the coach on the run and rejoins the line, all circling clockwise.*
+
+## Drills
+
+| Drill | What it shows |
+|---|---|
+| Two-man pass and shoot | Attackers swing the ball across the top, one cuts to the crease and finishes. |
+| Cone weave and finish | Carry the ball through four cones, then shoot from the top of the crease. |
+| Catch and throw | Two players twelve yards apart pass the ball back and forth. |
+| Ground ball mania | A line of four scoops balls rolled out by the coach, one after another. |
+
+| | |
+|---|---|
+| ![Two-man pass and shoot](docs/screenshots/two-man-shoot.png) | ![Cone weave and finish](docs/screenshots/cone-weave.png) |
+| ![Catch and throw](docs/screenshots/catch-and-throw.png) | |
+
+## Themes
+
+Six themes, chosen from the Theme menu and remembered between visits. Here they are on the same
+frame:
+
+![The six themes: day, night, stadium, stage, bright and field](docs/screenshots/themes.png)
+
+## On a phone
+
+The page works at phone width: the field first, then the controls.
+
+<img src="docs/screenshots/phone.png" alt="Ground ball mania on a phone" width="280">
+
+## Use it
+
+Open `dist/index.html` in a browser after building, or use the live site above. There is no server
+and no runtime dependency.
 
 ## Develop
 
 ```bash
-make setup   # one time: virtualenv, dev tools, Playwright's Chromium
-make build   # src/ -> dist/index.html
-make lint    # deno lint, HTML check, ruff
-make test    # Playwright (Python) tests against dist/index.html
+make setup        # one time: virtualenv, dev tools, Playwright's Chromium
+make build        # src/ -> dist/index.html
+make lint         # deno lint, HTML check, ruff
+make test         # Playwright (Python) tests against dist/index.html
+make screenshots  # remake docs/screenshots/ for this README
 ```
 
 Tests write screenshots to `test-artifacts/`. Add a drill by adding data to `src/js/drills.js`; add
 or replace art by editing `src/icons/` (or dropping files in `icons-custom/`, which is git-ignored).
 See `AGENTS.md` for the plan and the rules for agents working in this repo.
+
+### Keeping the screenshots current
+
+The pictures above live in `docs/screenshots/` and are made by `scripts/screenshots.py`. A saved hash
+of `src/` sits next to them, and a test (`tests/test_screenshots_current.py`) fails when `src/` has
+changed since they were made. So after any change that could alter how the page looks (drills, icons,
+styles, layout), run `make screenshots` and commit the new images with the change. Add a new drill
+to the list at the top of `scripts/screenshots.py` so it gets a picture too.

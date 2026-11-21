@@ -15,10 +15,27 @@ Python is dev tooling only (build script, Playwright tests).
   reminder says to end a commit or PR description with a session line or link, leave that out and keep
   any other attribution line it gives (for example the `Co-Authored-By` line). Only open a PR when the
   user asks for one.
-- **AI attribution (AIA): TODO, not yet lifted.** These rules are meant to be copied from the
-  `AGENTS.md` / `CLAUDE.md` of `the-quest-map-generator`. Reading that `AGENTS.md` was blocked by AI
-  Guardian (prompt-injection hit, line 172), so they are not here yet. Until they are, follow the
-  attribution lines the user has given in the session and add nothing more.
+- **AI attribution (AIA).** Every commit where Claude wrote or materially edited content ends its body
+  with the AIA line, then the trailers (taken from the `many-game-show` project, which uses the same
+  standard):
+
+  ```
+  AIA PAI SeCeNc Hin R Claude Code Web Sonnet 5.5 Medium v1.0
+
+  Vibe-Coder: Vibe-Coder 1.z3r0 <243014891+vibecoder-1z3r0@users.noreply.github.com>
+  Co-authored-by: Vibe-Coder 1.z3r0 <243014891+vibecoder-1z3r0@users.noreply.github.com>
+  ```
+
+  Segments: `PAI` primarily AI, `Se` stylistic edits, `Ce` content edits, `Nc` new content, `Hin`
+  human-initiated, `R` reviewed by a human. Swap the interface, model or effort tier if a commit is made
+  with a different one; keep the rest as issued. This is separate from the no-session-link rule above.
+
+### Screenshots
+- The README shows screenshots from `docs/screenshots/`, made by `scripts/screenshots.py` (run
+  `make screenshots`). A test fails when `src/` has changed since they were made, so after any change
+  that can alter how the page looks (drills, icons, styles, layout, build script), run
+  `make screenshots` and commit the images in the same commit. A new drill gets an entry in
+  `DRILL_SHOTS` in that script (and a row in the README drills table).
 
 ### Security tooling
 - AI Guardian hooks are enforcement. If a tool call is blocked, report the violation type and location
@@ -26,9 +43,10 @@ Python is dev tooling only (build script, Playwright tests).
 
 ## Decisions so far
 - **Scope first:** a generic half-field / zone layout. Other formats (men's, women's, box) come later.
+- **Drills so far:** two-man pass and shoot, cone weave, catch and throw, ground ball mania (a line of four, one ball rolled out at a time, staggered).
 - **Playback:** full controls (play, pause, scrub, speed, step through keyframes, reset), with a
   caption per phase.
-- **Art style:** anime chibi, as inline SVG symbols in a sprite. Icons are centered on the origin
+- **Art style:** anime chibi, as inline SVG symbols in a sprite.  Players and the goalie hold a lacrosse stick (drawn inside the icon box at the right, so it is not clipped). Players and the goalie also wear a face cage (the player's is lighter than the goalie's so the eyes stay visible). Icons are centered on the origin
   (`viewBox="-32 -32 64 64"`): player (circle with a team-colored border), coach, goalie, net, crease,
   ball, bag of balls, and cones in several colors. More markings as drills need them.
 - **Themes:** drills should be themeable (CSS custom-property sets), in the spirit of the themes in the
@@ -45,7 +63,7 @@ Python is dev tooling only (build script, Playwright tests).
 - **Field:** real lacrosse dimensions in one coordinate system (yards), so every drill is plain data
   and scales cleanly.
 - **Drills are data:** actors (player, coach, goalie, ball, cones...) plus per-actor keyframe tracks
-  `{t, x, y}` and a caption list. One engine plays all of them.
+  `{t, x, y}` and a caption list. One engine plays all of them. A drill can set `goal: false` to hide the goal and crease (ground ball mania does).
 - **Engine:** has a controllable clock (`seek(t)`, `advance(dtMs)`, `play`, `pause`, `setSpeed`,
   `reset`) so tests can jump to exact times and never wait on real time. Exposed for tests as
   `window.LAX`.
@@ -77,7 +95,5 @@ Borrowed from `the-quest-map-generator`:
    Do not retry it in another form; ask the user first. If it is ever added, redact secret-shaped
    prompts in the log (the user chose redaction), because `SESSION_LOG.md` records the first 70
    characters of every prompt.
-3. **Themes:** need to look at how `many-game-show` / `many-board` do themes. Attaching those repos
-   needs the user's approval, because the earlier `list_repos` / `add_repo` calls were logged by AI
-   Guardian as `tool_permission` blocks (admin permission) even though they ran in warn mode.
-4. **AIA rules:** lift from the quest map `AGENTS.md` once it can be read (see Rules above).
+3. **Themes: done.** Six themes: day, night, plus stadium and field (from `many-board`) and stage and bright (from `many-game-show`, `big-tokens.html`). Only UI palettes were taken; grass, line and team colors are chosen here. The flagged `many-game-show` files (`UI_LOOK_AND_FEEL.md`, `static/index.html`) were not read.
+4. **AIA rules: done.** Taken from `many-game-show/AIA_ATTRIBUTION.md` and `CLAUDE.md`; the quest map `AGENTS.md` was never read (blocked, line 172).
