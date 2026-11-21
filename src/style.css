@@ -341,10 +341,15 @@ button.primary {
   color: #3cc46a;
 }
 
-/* A yellow cone with an orange band. */
+/* Two-tone cones: yellow with an orange band, and orange with a yellow band. */
 .cone-yellow-orange {
   color: #f2c40f;
   --cone-band: #ff7a1a;
+}
+
+.cone-orange-yellow {
+  color: #ff7a1a;
+  --cone-band: #f2c40f;
 }
 
 @media (max-width: 52rem) {
