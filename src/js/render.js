@@ -61,7 +61,12 @@ export function buildField(svg) {
   const netY = GOAL_Y - (18 / 64) * ICON_SIZE.net;
   const net = svgEl(goal, "g", { transform: `translate(${GOAL_X} ${netY})` });
   iconUse(net, "net");
-  const label = svgEl(svg, "text", { class: "field-label", x: FIELD_W / 2, y: FIELD_H + 2 });
+  const label = svgEl(svg, "text", {
+    id: "midfield-label",
+    class: "field-label",
+    x: FIELD_W / 2,
+    y: FIELD_H + 2,
+  });
   label.textContent = "toward midfield";
   return svgEl(svg, "g", { id: "actors" });
 }

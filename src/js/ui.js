@@ -31,6 +31,9 @@ export function loadDrill(index) {
   // A drill can hide the goal and crease (`goal: false`), e.g. when the field is just open space.
   const goal = document.getElementById("goal");
   if (goal) goal.style.display = drill.goal === false ? "none" : "";
+  // Likewise the "toward midfield" label under the field (`midfieldLabel: false`).
+  const label = document.getElementById("midfield-label");
+  if (label) label.style.display = drill.midfieldLabel === false ? "none" : "";
   app.actors = buildActors(app.layer, drill);
   $("title").textContent = drill.title;
   $("summary").textContent = drill.summary;

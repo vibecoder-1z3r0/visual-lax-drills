@@ -68,3 +68,13 @@ def test_ground_ball_mania_hides_the_goal_and_crease(page):
     assert page.locator("#goal").evaluate("el => getComputedStyle(el).display") == "none"
     page.select_option("#drill", "0")
     assert page.locator("#goal").evaluate("el => getComputedStyle(el).display") != "none"
+
+
+def test_ground_ball_mania_hides_the_midfield_label(page):
+    def shown() -> str:
+        return page.locator("#midfield-label").evaluate("el => getComputedStyle(el).display")
+
+    page.select_option("#drill", "3")
+    assert shown() == "none"
+    page.select_option("#drill", "0")
+    assert shown() != "none"
