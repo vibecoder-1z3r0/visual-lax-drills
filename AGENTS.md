@@ -43,7 +43,9 @@ Python is dev tooling only (build script, Playwright tests).
 
 ## Decisions so far
 - **Scope first:** a generic half-field / zone layout. Other formats (men's, women's, box) come later.
-- **Drills so far:** two-man pass and shoot, cone weave, catch and throw, ground ball mania (a line of four, one ball rolled out at a time, staggered).
+- **Drills so far:** ground ball mania (a line of four, one ball rolled out at a time, staggered; it is first in
+  the list, so it is the default), two-man pass and shoot, cone weave, catch and throw. Tests and the
+  screenshot script find drills by id, never by position, so the order can change.
 - **Playback:** full controls (play, pause, scrub, speed, step through keyframes, reset), with a
   caption per phase.
 - **Art style:** anime chibi, as inline SVG symbols in a sprite.  Players and the goalie hold a lacrosse stick (drawn inside the icon box at the right, so it is not clipped). Players and the goalie also wear a face cage (the player's is lighter than the goalie's so the eyes stay visible). Icons are centered on the origin

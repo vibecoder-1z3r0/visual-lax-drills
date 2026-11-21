@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from conftest import choose_drill
 
 FIELD_W, FIELD_H = 60, 55
 
@@ -49,7 +50,8 @@ def test_advance_stops_at_the_end(page):
 
 
 def test_ball_travels_with_the_pass(page):
-    # In the first drill A1 passes to A2, so at t=2 the ball is on A2 and the page shows it there.
+    # In two-man pass and shoot A1 passes to A2, so at t=2 the ball is on A2 and the page shows it there.
+    choose_drill(page, "two-man-shoot")
     page.evaluate("LAX.app.engine.seek(2)")
     pos = page.evaluate("LAX.app.engine.positions()")
     assert pos["ball"] == pos["a2"] == {"x": 46, "y": 38}
@@ -60,6 +62,7 @@ def test_ball_travels_with_the_pass(page):
 
 
 def test_scrubbing_moves_time_and_pauses(page):
+    choose_drill(page, "two-man-shoot")
     page.locator("#play").click()
     page.locator("#scrub").fill("300")
     state = page.evaluate("({t: LAX.app.engine.t, p: LAX.app.engine.playing})")
@@ -81,6 +84,7 @@ def test_play_pause_and_reset_buttons(page):
 
 
 def test_captions_follow_time(page):
+    choose_drill(page, "two-man-shoot")
     first = page.locator("#caption").inner_text()
     page.evaluate("LAX.app.engine.seek(2.5)")
     assert page.locator("#caption").inner_text() == "A1 cuts hard toward the crease."
