@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "session_timing.py"
@@ -137,6 +138,9 @@ def test_the_newest_transcript_is_used(tmp_path, monkeypatch):
     project.mkdir(parents=True)
     old = write_transcript(project / "old.jsonl", [])
     new = write_transcript(project / "new.jsonl", [])
-    old.touch()
-    new.touch()
+    # Set the times explicitly: two files written back to back can get the same timestamp.
+    os.utime(old, (1_000_000, 1_000_000))
+    os.utime(new, (2_000_000, 2_000_000))
     assert timing.find_transcript(home=tmp_path) == new
+    os.utime(old, (3_000_000, 3_000_000))
+    assert timing.find_transcript(home=tmp_path) == old
