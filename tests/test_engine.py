@@ -98,14 +98,18 @@ def test_catch_and_throw_ball_travels_between_the_players(page):
 
 
 def test_ground_ball_mania_rolls_stay_within_ten_yards_of_the_coach(page):
+    """Wherever a ball comes to rest (where it was rolled to, or where a player holds it) it is
+    within ten yards of the coach."""
     drill = page.evaluate("LAX.DRILLS.find((d) => d.id === 'ground-ball-mania')")
     coach = next(a for a in drill["actors"] if a["id"] == "coach")["keys"][0]
     balls = [a for a in drill["actors"] if a["kind"] == "ball"]
     assert len(balls) == 4
     for ball in balls:
-        for key in ball["keys"]:
-            dist = ((key["x"] - coach["x"]) ** 2 + (key["y"] - coach["y"]) ** 2) ** 0.5
-            assert dist <= 10, (ball["id"], key)
+        keys = ball["keys"]
+        for key, after in zip(keys, keys[1:], strict=False):
+            if (key["x"], key["y"]) == (after["x"], after["y"]):
+                dist = ((key["x"] - coach["x"]) ** 2 + (key["y"] - coach["y"]) ** 2) ** 0.5
+                assert dist <= 10, (ball["id"], key)
 
 
 def test_ground_ball_mania_nobody_collides(page):
@@ -131,3 +135,29 @@ def test_ground_ball_mania_nobody_collides(page):
             assert dist(pos[a], at("coach", t)) >= 3.2, (t, a, "coach")
             assert dist(pos[a], at("cone", t)) >= 2.4, (t, a, "cone")
             assert dist(pos[a], at("bag", t)) >= 2.7, (t, a, "bag")
+
+
+def test_ground_ball_mania_rolled_balls_never_pass_close_to_a_player(page):
+    """A ball that is moving must stay clear of every player. A carried ball sits about 1.8 yards
+    from its player, so anything closer than 1.2 means a ball was rolled into someone."""
+    drill = page.evaluate("LAX.DRILLS.find((d) => d.id === 'ground-ball-mania')")
+    actors = {a["id"]: a["keys"] for a in drill["actors"]}
+    kids = [i for i in actors if i.startswith("p")]
+    balls = [i for i in actors if i.startswith("ball") and i != "bag"]
+    steps = int(drill["duration"] / 0.05)
+
+    def at(ident, t):
+        return page.evaluate("([keys, t]) => LAX.trackAt(keys, t)", [actors[ident], t])
+
+    def dist(a, b):
+        return ((a["x"] - b["x"]) ** 2 + (a["y"] - b["y"]) ** 2) ** 0.5
+
+    for ball in balls:
+        previous = at(ball, 0)
+        for n in range(1, steps + 1):
+            t = n * 0.05
+            now = at(ball, t)
+            if dist(now, previous) > 0.05:
+                for kid in kids:
+                    assert dist(now, at(kid, t)) >= 1.2, (t, ball, kid)
+            previous = now
