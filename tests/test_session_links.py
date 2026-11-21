@@ -3,8 +3,8 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "check_commit_messages.py"
-spec = importlib.util.spec_from_file_location("check_commit_messages", SCRIPT)
+SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "check_no_session_links.py"
+spec = importlib.util.spec_from_file_location("check_no_session_links", SCRIPT)
 check = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(check)
 
@@ -37,3 +37,13 @@ def test_ordinary_claude_mentions_are_allowed():
         check.find_violations([("a1", "Docs for the Claude GitHub App at claude.ai/settings")])
         == []
     )
+
+
+def test_pull_request_text_is_checked(capsys):
+    assert check.check_text("Adds the field\n\nSummary here.") == 0
+    assert check.check_text(f"Adds the field\n\n{LINK}") == 1
+    assert "pull request contains a session link" in capsys.readouterr().out
+
+
+def test_pull_request_link_in_title_is_caught():
+    assert check.check_text(f"Fix {LINK}\n\nbody") == 1
