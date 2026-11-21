@@ -95,3 +95,14 @@ def test_catch_and_throw_ball_travels_between_the_players(page):
     start, mid, end = at(0), at(1.5), at(2.5)
     assert start["x"] < mid["x"] < end["x"]  # thrown from A1 to A2
     assert at(3.5)["x"] > at(4.5)["x"]  # and back again
+
+
+def test_ground_ball_mania_rolls_stay_within_ten_yards_of_the_coach(page):
+    drill = page.evaluate("LAX.DRILLS.find((d) => d.id === 'ground-ball-mania')")
+    coach = next(a for a in drill["actors"] if a["id"] == "coach")["keys"][0]
+    balls = [a for a in drill["actors"] if a["kind"] == "ball"]
+    assert len(balls) == 4
+    for ball in balls:
+        for key in ball["keys"]:
+            dist = ((key["x"] - coach["x"]) ** 2 + (key["y"] - coach["y"]) ** 2) ** 0.5
+            assert dist <= 10, (ball["id"], key)
