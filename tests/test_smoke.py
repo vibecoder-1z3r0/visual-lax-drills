@@ -63,7 +63,6 @@ def test_theme_is_remembered_after_a_reload(page):
     assert page.locator("#theme").input_value() == "field"
 
 
-
 def test_ground_ball_mania_hides_the_goal_and_crease(page):
     page.select_option("#drill", "3")
     assert page.locator("#goal").evaluate("el => getComputedStyle(el).display") == "none"
