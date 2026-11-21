@@ -1,0 +1,23 @@
+[project]
+name = "visual-lax-drills"
+version = "0.0.0"
+description = "Dev tooling for Visual Lax Drills (the shipped site has no Python)."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["playwright==1.63.0", "pytest>=8", "pillow>=10", "ruff>=0.6", "deno>=2", "html5lib>=1.1"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]  # long embedded JavaScript snippets

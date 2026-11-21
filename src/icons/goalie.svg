@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-32 -32 64 64">
+  <!-- Placeholder chibi goalie: bold ring, big helmet and a cage over the face. -->
+  <circle r="26" fill="#ffe3cc" stroke="var(--team, #444)" stroke-width="7"/>
+  <path d="M-22.9 -1 A23 23 0 0 1 22.9 -1 Z" fill="var(--team, #444)"/>
+  <ellipse cx="-9" cy="8" rx="4.5" ry="6" fill="#2b2b3a"/>
+  <ellipse cx="9" cy="8" rx="4.5" ry="6" fill="#2b2b3a"/>
+  <circle cx="-10.6" cy="5.6" r="1.7" fill="#fff"/>
+  <circle cx="7.4" cy="5.6" r="1.7" fill="#fff"/>
+  <path d="M-3 18 Q0 21 3 18" fill="none" stroke="#7a3b3b" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M-14 -1 V21 M0 -1 V23 M14 -1 V21" fill="none" stroke="#555" stroke-width="1.6" opacity="0.65"/>
+  <path d="M-22 7 H22 M-19 15 H19" fill="none" stroke="#555" stroke-width="1.6" opacity="0.65"/>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-32 -32 64 64">
+  <!-- Marker cone: the body takes its color from the CSS color property (currentColor). -->
+  <path d="M0 -26 L22 24 H-22 Z" fill="currentColor" stroke="#333" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M-12.3 2 H12.3 L15.8 10 H-15.8 Z" fill="#fff" opacity="0.85"/>
+  <rect x="-26" y="22" width="52" height="8" rx="3" fill="currentColor" stroke="#333" stroke-width="3"/>
+</svg>
