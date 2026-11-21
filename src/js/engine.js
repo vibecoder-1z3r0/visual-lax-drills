@@ -17,6 +17,23 @@ export function trackAt(keys, t) {
   return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u };
 }
 
+// A drill can have several choreographed versions ("variants"); the first is the default. Each
+// variant gives its own actors, captions and duration (and optionally its own summary); everything
+// else (title, view, flags, markings) comes from the drill. Returns a plain drill the engine can play.
+export function resolveDrill(drill, variantIndex = 0) {
+  if (!drill.variants) return drill;
+  const variant = drill.variants[variantIndex] || drill.variants[0];
+  return {
+    ...drill,
+    actors: variant.actors,
+    captions: variant.captions,
+    duration: variant.duration,
+    summary: variant.summary || drill.summary,
+    variantId: variant.id,
+    variantName: variant.name,
+  };
+}
+
 // The caption text in effect at time t: the last caption whose start time has passed.
 export function captionAt(captions, t) {
   let text = "";

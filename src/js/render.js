@@ -73,7 +73,29 @@ export function buildField(svg) {
     y: FIELD_H + 2,
   });
   label.textContent = "toward midfield";
+  svgEl(svg, "g", { id: "markings" });
   return svgEl(svg, "g", { id: "actors" });
+}
+
+// Extra lines and labels a drill draws on the field (yards): { type: "line", x1, y1, x2, y2, dash },
+// { type: "rect", x, y, w, h } or { type: "text", x, y, text }.
+export function renderMarkings(group, markings) {
+  group.replaceChildren();
+  for (const m of markings || []) {
+    if (m.type === "line") {
+      svgEl(group, "line", {
+        class: m.dash ? "mark-line mark-dash" : "mark-line",
+        x1: m.x1,
+        y1: m.y1,
+        x2: m.x2,
+        y2: m.y2,
+      });
+    } else if (m.type === "rect") {
+      svgEl(group, "rect", { class: "mark-line", x: m.x, y: m.y, width: m.w, height: m.h });
+    } else if (m.type === "text") {
+      svgEl(group, "text", { class: "mark-text", x: m.x, y: m.y }).textContent = m.text;
+    }
+  }
 }
 
 // Creates one group per actor and returns them keyed by actor id.

@@ -1,9 +1,9 @@
 import { SPEEDS, THEME_KEY, THEMES } from "./constants.js";
 import { DRILLS } from "./drills.js";
-import { createEngine } from "./engine.js";
-import { buildActors, buildField, placeActors, viewBoxFor } from "./render.js";
+import { createEngine, resolveDrill } from "./engine.js";
+import { buildActors, buildField, placeActors, renderMarkings, viewBoxFor } from "./render.js";
 
-export const app = { engine: null, drillIndex: 0, layer: null, actors: null };
+export const app = { engine: null, drillIndex: 0, variantIndex: 0, layer: null, actors: null };
 
 function $(id) {
   return document.getElementById(id);
@@ -19,10 +19,28 @@ function refresh(engine) {
   $("play").setAttribute("aria-pressed", String(engine.playing));
 }
 
-export function loadDrill(index) {
+// Shows the "Version" menu only for a drill that has more than one choreographed version.
+function showVersions(base, variantIndex) {
+  const pick = $("variant-pick");
+  const select = $("variant");
+  select.replaceChildren();
+  const variants = base.variants || [];
+  pick.hidden = variants.length < 2;
+  fillSelect(
+    select,
+    variants.map((v, i) => ({ value: String(i), label: v.name })),
+    String(variantIndex),
+  );
+}
+
+export function loadDrill(index, variantIndex = 0) {
   if (app.engine) app.engine.pause();
   app.drillIndex = index;
-  const drill = DRILLS[index];
+  app.variantIndex = variantIndex;
+  const base = DRILLS[index];
+  const drill = resolveDrill(base, variantIndex);
+  showVersions(base, variantIndex);
+  renderMarkings($("markings"), drill.markings);
   const engine = createEngine(drill);
   engine.speed = Number($("speed").value);
   engine.onChange(refresh);
@@ -95,6 +113,9 @@ export function initUi() {
   );
 
   $("drill").addEventListener("change", (e) => loadDrill(Number(e.target.value)));
+  $("variant").addEventListener("change", (e) =>
+    loadDrill(app.drillIndex, Number(e.target.value)),
+  );
   $("speed").addEventListener("change", (e) => app.engine.setSpeed(Number(e.target.value)));
   $("theme").addEventListener("change", (e) => setTheme(e.target.value));
   $("play").addEventListener("click", () => app.engine.toggle());
