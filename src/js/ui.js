@@ -92,6 +92,9 @@ export function loadDrill(index, variantIndex = 0, takeIndex = 0) {
   app.speech = buildSpeech($("speech"), drill);
   $("title").textContent = drill.title;
   $("summary").textContent = drill.summary;
+  // An optional note under the summary (`notes`), for things a coach should know.
+  $("notes").textContent = drill.notes || "";
+  $("notes").hidden = !drill.notes;
   $("scrub").max = String(Math.round(drill.duration * 100));
   refresh(engine);
 }

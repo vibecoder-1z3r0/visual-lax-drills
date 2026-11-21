@@ -154,6 +154,11 @@ class Round:
         self.t = 0.0
         self.hold = 0
         self.pass_times = []
+        self.nb_phase = None  # new ball: None, 'out' (play stopped), 'rolling', 'done'
+        self.nb_roll_t = 0.0
+        self.nb_land = 0.0
+        self.nb_out = (0.0, 0.0)
+        self.pending: list[tuple] = []
         self.c_cur = COACH2
         self.c_nxt = COACH2
         self.coach_keys = [(0.0, COACH2[0], COACH2[1])]
@@ -269,7 +274,13 @@ class Round:
                     if dist(nxt[pid], ahead) < SLOT - 0.15:
                         nxt[pid] = p.pos
 
-        if loose:
+        if loose and self.nb_phase == "out":
+            if t + 1e-9 >= self.nb_roll_t:
+                self.roll_new_ball(t)
+        if loose and self.nb_phase == "out":
+            for p in in_play:  # play is stopped while the coach gets a new ball
+                nxt[p.id] = p.pos
+        elif loose:
             self.chase_loose(t, nxt)
         else:
             offence = [p for p in in_play if p.team == carrier.team]
@@ -286,10 +297,18 @@ class Round:
         self.separate(nxt)
         self.check_between(nxt)
 
+        # a new ball has been scooped up
+        if loose and self.nb_phase == "rolling" and t + DT + 1e-9 >= self.nb_land:
+            near = min(in_play, key=lambda q: dist(pocket_of(nxt[q.id]), self.loose_spot))
+            if dist(pocket_of(nxt[near.id]), self.loose_spot) < 0.3:
+                self.scoop(near, t, nxt)
+
         # what happens to the ball during this step
         ball_keys = [(t,) + self.ball_xy(carrier) + (0,)] if carrier else []
         if carrier and not loose:
             ball_keys += self.ball_events(t, carrier, nxt)
+        ball_keys += self.pending
+        self.pending = []
         for pid, pos in nxt.items():
             p = self.players[pid]
             p.pos = pos
@@ -444,7 +463,63 @@ class Round:
         for i, p in enumerate(sorted(in_play, key=lambda q: dist(q.pos, spot))):
             ang = i * 2.1
             target = add(spot, (math.cos(ang), math.sin(ang)), 1.6 + 0.4 * i)
+            if i == 0 and self.nb_phase == "rolling":  # the closest player scoops it up
+                target = (spot[0] - POCKET[0], spot[1] - POCKET[1])
             nxt[p.id] = self.steer(p, clamp_zone(target), V_RUN)
+
+    def send_out_of_bounds(self, t, carrier, defence):
+        """A pass sails out of bounds on the east side, near the coach in the field."""
+        start = pocket_of(carrier.pos)
+        y = min(max(carrier.pos[1], 22.0), 48.0)
+        if abs(y - self.c_nxt[1]) < 2.5:
+            y += 3.0 if y < 40 else -3.0
+        out = (EAST + 1.0, y)
+        length = dist(start, out)
+        lane = min((seg_dist(d.pos, start, out) for d in defence), default=9.0)
+        if length > 14.0 or lane < 1.8:
+            return None
+        tau = max(0.5, length / 15.0)
+        self.nb_phase = "out"
+        self.nb_out = out
+        self.nb_roll_t = t + 3.0
+        self.carrier = None
+        self.last_passer = carrier
+        self.caption(t, "The pass sails out of bounds. Play stops while a coach gets a new ball.")
+        return [(t + tau, out[0], out[1], 1)]
+
+    def roll_new_ball(self, t):
+        """The coach in the field rolls a new ball in, about 9 yards along the field."""
+        coach = self.c_nxt
+        players = self.playing()
+        best, best_score = None, -1e9
+        for k in range(9):
+            y = coach[1] + (k - 4) * 1.5
+            spot = clamp_zone((coach[0] - 9.0, y), 0.5)
+            score = min((dist(spot, q.pos) for q in players), default=9.0)
+            if score > best_score:
+                best, best_score = spot, score
+        self.loose_spot = best
+        self.nb_phase = "rolling"
+        self.nb_land = t + 1.6
+        start = (coach[0] - 0.9, coach[1] + 0.2)
+        self.pending += [
+            (t - 0.05, self.nb_out[0], self.nb_out[1], 1),
+            (t, start[0], start[1], 0),
+            (self.nb_land, best[0], best[1], 1),
+        ]
+        self.say(t, 1.6, "coach2", "New ball!")
+        self.caption(
+            t, 'A coach in the field throws in a new ball: "New ball!" Everyone goes for it.'
+        )
+
+    def scoop(self, player, t, nxt):
+        self.carrier = player
+        self.nb_phase = "done"
+        self.hold = 0
+        self.last_passer = None
+        self.pending.append((t + DT,) + self.ball_xy_at(nxt[player.id]) + (0,))
+        who = "Red" if player.team == "a" else "Blue"
+        self.caption(t + 1.0, f"{who} scoops it up and keep-away goes on.")
 
     # ---- the ball: passes, the turnover, the drop ---------------------------------------
     def ball_events(self, t, carrier, nxt):
@@ -473,6 +548,11 @@ class Round:
                     f"from {loser}.",
                 )
                 return keys
+        out_at = spec.get("new_ball_at")
+        if out_at is not None and t >= out_at and self.nb_phase is None and offence:
+            keys_out = self.send_out_of_bounds(t, carrier, defence)
+            if keys_out:
+                return keys_out
         drop = spec.get("drop_at")
         if drop is not None and t >= drop and not self.dropped and offence:
             self.dropped = True
@@ -836,6 +916,20 @@ ROUNDS = [
         "releases": [12.9, 22.9, 31.9],
         "drop_at": 43.9,
         "count_start": 40.9,
+    },
+    {
+        "id": "new-ball",
+        "name": "Out of bounds: a new ball",
+        "summary": (
+            "A pass sails out of bounds. Play stops, a coach throws in a new ball, everyone fights "
+            "for it, and keep-away goes on through the releases."
+        ),
+        "seeds": [1, 26, 48, 15, 8],
+        "hold": 2,
+        "gb_winner": "S",
+        "releases": [12.9, 29.9, 37.9],
+        "new_ball_at": 18.9,
+        "count_start": 44.9,
     },
 ]
 

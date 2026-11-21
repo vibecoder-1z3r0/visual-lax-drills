@@ -258,6 +258,13 @@ button.primary {
   color: var(--muted);
 }
 
+#notes {
+  margin: -0.25rem 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
 #caption {
   min-height: 3em;
   margin: 0 0 1rem;

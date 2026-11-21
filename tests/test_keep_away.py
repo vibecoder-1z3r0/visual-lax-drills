@@ -16,6 +16,7 @@ VERSIONS = (
     "blue-wins-ground-ball",
     "blue-takes-it-away",
     "loose-at-the-count",
+    "new-ball",
 )
 
 
@@ -46,17 +47,17 @@ def test_the_generated_data_is_what_the_generator_makes():
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_there_are_four_versions_and_the_standard_one_is_first(page):
+def test_there_are_five_versions_and_the_standard_one_is_first(page):
     drill = page.evaluate("LAX.DRILLS.find((d) => d.id === 'keep-away')")
     ids = [v["id"] for v in drill["variants"]]
     assert ids[0] == "standard" or ids[0].startswith("standard")
-    assert len(ids) == 4
+    assert len(ids) == 5
 
 
 def test_the_version_picker_is_only_shown_for_drills_with_versions(page):
     choose_drill(page, "keep-away")
     assert page.locator("#variant-pick").is_visible()
-    assert page.locator("#variant option").count() == 4
+    assert page.locator("#variant option").count() == 5
     choose_drill(page, "catch-and-throw")
     assert not page.locator("#variant-pick").is_visible()
 
@@ -220,3 +221,36 @@ def test_the_coach_in_the_field_drifts_out_of_bounds(page):
     coach = next(a for a in drill["actors"] if a["id"] == "coach2")["keys"]
     assert coach[0]["x"] < 45  # starts in the field
     assert coach[-1]["x"] > 45  # and ends up out of bounds, out of the players' way
+
+
+def test_a_new_ball_is_thrown_in_by_the_coach_in_the_field(page):
+    choose_drill(page, "keep-away")
+    index = page.evaluate(
+        "LAX.DRILLS.find((d) => d.id === 'keep-away').variants.findIndex((v) => v.id === 'new-ball')"
+    )
+    page.select_option("#variant", str(index))
+    drill = page.evaluate("LAX.app.engine.drill")
+    says = [s for s in drill["speech"] if s["text"] == "New ball!"]
+    assert len(says) == 1 and says[0]["who"] == "coach2"
+    # the old ball goes out of bounds first, then a new one is rolled in from the coach
+    ball = next(a for a in drill["actors"] if a["id"] == "ball")["keys"]
+    out = [k for k in ball if k["x"] > 45 and k["t"] < says[0]["t"]]
+    assert out, "the ball goes out of bounds before the new one is thrown in"
+    page.evaluate(f"LAX.app.engine.seek({says[0]['t'] + 0.3})")
+    bubble = page.locator('.speech[data-speaker="coach2"]')
+    assert bubble.get_attribute("visibility") == "visible"
+    assert "New ball!" in bubble.text_content()
+    # the cone coach still runs the drill: the other lines are all his
+    assert {s["who"] for s in drill["speech"] if s["text"] != "New ball!"} == {"coach"}
+
+
+def test_the_note_says_who_runs_the_drill(page):
+    choose_drill(page, "keep-away")
+    assert "one coach" in page.locator("#notes").inner_text()
+    choose_drill(page, "catch-and-throw")
+    assert not page.locator("#notes").is_visible()
+
+
+def test_keep_away_is_the_second_drill(page):
+    ids = page.evaluate("LAX.DRILLS.map((d) => d.id)")
+    assert ids[:2] == ["ground-ball-mania", "keep-away"]

@@ -59,6 +59,8 @@ export const DRILLS = [
     // other side, and the 20-yard line is 20 yards out from the goal line.
     view: { x: 8, y: 12, w: 40, h: 38 },
     iconScale: 1.35,
+    notes:
+      "Note: either coach can run the drill (call the releases, the countdown and the reset, or throw in a new ball). With only one coach, that coach does it all. Here the coach at the cone runs the drill and the coach in the field throws in new balls.",
     midfieldLabel: false,
     markings: [
       { type: "rect", x: 15, y: 5, w: 30, h: 50 },
