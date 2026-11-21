@@ -160,3 +160,26 @@ def test_ground_ball_mania_rolled_balls_never_pass_close_to_a_player(page):
                 for kid in kids:
                     assert dist(now, at(kid, t)) >= 1.2, (t, ball, kid)
             previous = now
+
+
+def test_ground_ball_mania_rolls_head_toward_the_goal(page):
+    """Each ball is rolled toward the goal (within 30 degrees of straight at it) and 5 to 10
+    yards out. The second ball is the 5-yard minimum."""
+    import math
+
+    drill = page.evaluate("LAX.DRILLS.find((d) => d.id === 'ground-ball-mania')")
+    goal = (30, 15)  # GOAL_X, GOAL_Y in constants.js
+    coach = next(a for a in drill["actors"] if a["id"] == "coach")["keys"][0]
+    names = ["ball", "ball2", "ball3", "ball4"]
+    toward = math.atan2(goal[1] - coach["y"], goal[0] - coach["x"])
+    lengths = []
+    for name in names:
+        keys = next(a for a in drill["actors"] if a["id"] == name)["keys"]
+        # the first position after the ball is rolled out is the first key that is not the rest spot
+        rest, spot = keys[0], keys[2]
+        dx, dy = spot["x"] - rest["x"], spot["y"] - rest["y"]
+        length = math.hypot(dx, dy)
+        lengths.append(length)
+        off = abs(math.degrees(math.atan2(dy, dx) - toward))
+        assert off < 30 or off > 330, (name, off)
+    assert lengths[1] == min(lengths), lengths
