@@ -336,6 +336,11 @@ button.primary {
   text-anchor: middle;
 }
 
+/* The goalie belongs to neither team in odd man, offense/defense, so it gets its own color. */
+.kind-goalie.team-none {
+  --team: #8b5cf6;
+}
+
 .speech-box {
   fill: #fff;
   stroke: #1f2937;

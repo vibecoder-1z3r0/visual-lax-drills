@@ -40,7 +40,7 @@ def track(page, actor, t):
 
 def test_the_generated_data_is_what_the_generator_makes():
     result = subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / "keepaway_choreography.py"), "--check"],
+        [sys.executable, str(ROOT / "scripts" / "choreography.py"), "--check"],
         capture_output=True,
         text=True,
     )
