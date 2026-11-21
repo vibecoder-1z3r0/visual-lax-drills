@@ -92,12 +92,16 @@ Borrowed from `the-quest-map-generator`:
    day/night theme switch. There is deliberately no `make serve`: the page is one static file, so open
    `dist/index.html` directly, and the tests load it as a `file://` URL. (An earlier attempt that
    included a localhost URL was blocked by AI Guardian as `ssrf_blocked`.) Next: real art, more drills.
-2. **Session recorder: deferred by the user.** It would come from `the-quest-map-generator`
-   (`scripts/session_timing.py`, `scripts/session_log_header.md`, the pre-commit hook in
-   `scripts/hooks/`, `SESSION_LOG.md`, `make session-log`). The copy command was blocked by AI Guardian
-   (`tool_permission`, subreason `immutable_protection`, `viol_23534299`; the target was not named).
-   Do not retry it in another form; ask the user first. If it is ever added, redact secret-shaped
-   prompts in the log (the user chose redaction), because `SESSION_LOG.md` records the first 70
-   characters of every prompt.
+2. **Session recorder: done.** `scripts/session_timing.py` (adapted from `many-game-show`) writes
+   `session-logs/<session start, UTC>.md` from the session transcript under `~/.claude/projects/`:
+   per-turn agent time, human think time and tokens. `make session-log` runs it; `make hooks` (part of
+   `make setup`) sets `core.hooksPath` to `scripts/hooks`, whose `pre-commit` hook refreshes the log and
+   adds it to each commit, and skips quietly where there is no transcript (CI). The log is public, so
+   every prompt is cleaned (harness reminders dropped) and **redacted** (secret-shaped strings, emails,
+   Claude session links) before its first 70 characters are kept; keep that redaction and its tests in
+   place. One file per session, so a later session never overwrites an earlier one. The earlier copy
+   attempt was blocked by AI Guardian (`tool_permission`, subreason `immutable_protection`,
+   `viol_23534299`); this version was written here, not copied, at the user's request. If a call is
+   blocked again, report it and stop.
 3. **Themes: done.** Six themes: day, night, plus stadium and field (from `many-board`) and stage and bright (from `many-game-show`, `big-tokens.html`). Only UI palettes were taken; grass, line and team colors are chosen here. The flagged `many-game-show` files (`UI_LOOK_AND_FEEL.md`, `static/index.html`) were not read.
 4. **AIA rules: done.** Taken from `many-game-show/AIA_ATTRIBUTION.md` and `CLAUDE.md`; the quest map `AGENTS.md` was never read (blocked, line 172).

@@ -4,7 +4,7 @@ DENO ?= $(if $(wildcard .venv/bin/deno),.venv/bin/deno,deno)
 
 SOURCES := $(shell find src icons-custom -type f 2>/dev/null) scripts/build.py
 
-.PHONY: build lint test clean setup screenshots
+.PHONY: build lint test clean setup screenshots session-log hooks
 
 # CI runs these three, in this order, as separate steps: make build, make lint, make test.
 # lint and test use the built page, so they only rebuild it if it is missing or out of date.
@@ -27,9 +27,16 @@ test: dist/index.html ## run the Playwright suite against dist/index.html
 screenshots: build ## rebuild docs/screenshots/ for the README (commit the result)
 	$(PY) scripts/screenshots.py
 
+session-log:      ## write this session's timing log to session-logs/ (the pre-commit hook runs this)
+	$(PY) scripts/session_timing.py --header scripts/session_log_header.md --out-dir session-logs
+
+hooks:            ## use scripts/hooks as this checkout's git hooks (setup does this)
+	git config core.hooksPath scripts/hooks
+
 setup:            ## install the dev tooling (Python only) and the Playwright browser
 	python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 	.venv/bin/python -m playwright install chromium
+	$(MAKE) hooks
 
 clean:
 	rm -rf dist test-artifacts

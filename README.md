@@ -58,6 +58,16 @@ Tests write screenshots to `test-artifacts/`. Add a drill by adding data to `src
 or replace art by editing `src/icons/` (or dropping files in `icons-custom/`, which is git-ignored).
 See `AGENTS.md` for the plan and the rules for agents working in this repo.
 
+### Session log
+
+`make session-log` writes a turn-by-turn timing report for the current Claude Code session to
+`session-logs/<session start>.md`: how long the agent worked on each request, how long the human took
+to reply, and token use. Each prompt is cut to 70 characters after secret-shaped strings, emails and
+Claude session links are redacted. `make setup` (or `make hooks`) points git at `scripts/hooks`, whose
+`pre-commit` hook refreshes the log and adds it to every commit; it does nothing where there is no
+session transcript, such as CI. Each session writes its own file, so a later one never overwrites an
+earlier one. Don't edit the logs by hand.
+
 ### Keeping the screenshots current
 
 The pictures above live in `docs/screenshots/` and are made by `scripts/screenshots.py`. A saved hash

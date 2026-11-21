@@ -1,0 +1,5 @@
+#!/bin/sh
+# Refresh this session's log in session-logs/ and include it in the commit. Skipped quietly where
+# there is no session transcript (CI, someone else's checkout), so it never blocks a commit.
+make -s session-log >/dev/null 2>&1 && git add -A session-logs
+exit 0
