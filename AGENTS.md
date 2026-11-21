@@ -64,7 +64,7 @@ Python is dev tooling only (build script, Playwright tests).
   in `JS_ORDER` in the build script.
 - **Field:** real lacrosse dimensions in one coordinate system (yards), so every drill is plain data
   and scales cleanly. The stripes are 5 yards each. Icons are drawn about twice real size (player 1.8
-  yards, ball 0.7; a real player is about 0.7 yards across) and each drill zooms in on its action with
+  yards, ball 0.5; a real player is about 0.7 yards across) and each drill zooms in on its action with
   `view: { x, y, w, h }`; `iconScale` makes a drill's actors bigger when it can only zoom a little. Space
   players and set paths from real distances, not from icon size.
 - **Drills are data:** actors (player, coach, goalie, ball, cones...) plus per-actor keyframe tracks
@@ -91,8 +91,7 @@ Borrowed from `the-quest-map-generator`:
 1. **Scaffold: done.** Build, lint, tests, CI, two demo drills, seven placeholder chibi icons, and a
    day/night theme switch. There is deliberately no `make serve`: the page is one static file, so open
    `dist/index.html` directly, and the tests load it as a `file://` URL. (An earlier attempt that
-   included a localhost URL was blocked by AI Guardian as `ssrf_blocked`.) Next: real art, more drills,
-   icon sizes (they are small next to the 60-yard field), more themes.
+   included a localhost URL was blocked by AI Guardian as `ssrf_blocked`.) Next: real art, more drills.
 2. **Session recorder: deferred by the user.** It would come from `the-quest-map-generator`
    (`scripts/session_timing.py`, `scripts/session_log_header.md`, the pre-commit hook in
    `scripts/hooks/`, `SESSION_LOG.md`, `make session-log`). The copy command was blocked by AI Guardian
