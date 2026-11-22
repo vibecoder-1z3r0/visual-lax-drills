@@ -225,6 +225,29 @@ def test_the_player_nearest_the_coach_goes_to_him_for_the_next_ball(page):
     assert bad == [], bad[:5]
 
 
+def test_the_player_who_goes_for_the_next_ball_runs_he_does_not_walk(page):
+    bad = check_every_take(
+        page,
+        """
+        const calls = d.captions.filter((c) => c.text.includes('goes toward the coach'));
+        const players = d.actors.filter((a) => a.kind === 'player');
+        for (const c of calls) {
+          let fastest = 0;
+          for (const p of players) {
+            for (let i = 1; i < p.keys.length; i++) {
+              const a = p.keys[i - 1], b = p.keys[i];
+              if (a.t < c.t - 0.5 || a.t > c.t + 6 || b.t - a.t < 0.5) continue;
+              const dist = Math.hypot(b.x - a.x, b.y - a.y);
+              if (dist > 4) fastest = Math.max(fastest, dist / (b.t - a.t));
+            }
+          }
+          if (fastest < 5.0) problems.push([name, c.t, 'too slow', fastest]);
+        }
+        """,
+    )
+    assert bad == [], bad[:5]
+
+
 def test_the_standard_round_releases_until_all_five_are_out(page):
     drill = drill_data(page, 0)
     text = " ".join(c["text"] for c in drill["captions"])

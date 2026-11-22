@@ -462,9 +462,9 @@ class Round:
         if self.nb_phase == "regroup" and self.reg_started:
             for p in in_play:  # play is stopped; only the ones who have a job move
                 if self.clearing and p is self.carrier:
-                    nxt[p.id] = self.steer(p, self.clear_target, V_RUN * 0.85)
-                elif p.id in self.stage:
-                    nxt[p.id] = self.steer(p, self.stage[p.id], V_RUN * 0.85)
+                    nxt[p.id] = self.steer(p, self.clear_target, V_RUN)
+                elif p.id in self.stage:  # they run, they do not walk
+                    nxt[p.id] = self.steer(p, self.stage[p.id], V_RUN * 1.05)
                 else:
                     nxt[p.id] = p.pos
         elif loose and self.nb_phase in ("out", "reset", "regroup", "feeding"):
@@ -479,7 +479,7 @@ class Round:
                     self.reset_in.add(p.id)
                 if p.id not in self.reset_in:
                     goal = way
-                nxt[p.id] = self.steer(p, goal, V_RUN * 0.8)
+                nxt[p.id] = self.steer(p, goal, V_RUN * (0.95 if self.niagara else 0.8))
         elif loose:
             self.chase_loose(t, nxt)
         else:
@@ -1744,7 +1744,7 @@ NIAGARA_ROUNDS = [
         "layout": "niagara",
         "goalie": False,
         "offense": "a",
-        "seeds": [6, 4, 3, 5, 2],
+        "seeds": [6, 4, 5, 2, 1],
         "hold": 2,
         "shots": [
             ("takeaway", "new_ball_release", "carry"),
