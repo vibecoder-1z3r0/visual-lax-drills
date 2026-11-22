@@ -89,7 +89,9 @@ Python is dev tooling only (build script, Playwright tests).
   one coach just behind it, and the lines wait behind the 35 (red west, blue east); all coaches stay
   behind the 35, so there is no coach in the field. Two from each team fight for a ground ball, the
   winners are on offense for the whole round, and their next player pops out for a free pass (3 on 2).
-  Releases (`new_ball_release` for the next two, `new_ball_release_defense` for one defender) never
+  Nobody goes back to the lines until a reset is called: after a stoppage play freezes, the offensive
+  player nearest the coach walks toward him for the next ball and everyone else stays put (a player
+  who was just released runs in). Releases (`new_ball_release` for the next two, `new_ball_release_defense` for one defender) never
   put the offense more than one up or the defense past even, up to 5 on 5; a goalie does not count.
   After a goal a coach feeds a new ball to the offensive player nearest the coach; after a save or a
   takeaway (`("takeaway", after, route)`, route `goalie`, `carry` or `coach`) the ball goes back to

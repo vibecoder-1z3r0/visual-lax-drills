@@ -331,37 +331,39 @@ class Round:
         d = [f"{pre[lose]}{i}" for i in range(1, 6)]
         e = 1 if lose == "b" else -1  # the defenders come from the east (+x) when they are blue
         spot = (BALL_N[0] - POCKET[0], BALL_N[1] - POCKET[1])
-        free = (spot[0] - e * 5.6, spot[1] - 2.6)  # where the third player takes the free pass
+        free = (spot[0] - e * 4.5, spot[1] + 2.9)  # where the third player takes the free pass
         slot = {pid: p.pos for pid, p in self.players.items()}
         pos = lambda team, k: slot_pos(team, k)  # noqa: E731
         scripts = {
-            w[0]: [(0.0, slot[w[0]]), (0.5, slot[w[0]]), (3.2, spot), (6.2, spot)],
+            w[0]: [(0.0, slot[w[0]]), (0.5, slot[w[0]]), (3.2, spot), (5.0, spot)],
             w[1]: [
                 (0.0, slot[w[1]]),
                 (0.7, slot[w[1]]),
                 (3.2, add(spot, (-0.6 * e, 3.2))),
-                (6.2, add(spot, (-0.6 * e, 3.2))),
+                (5.0, add(spot, (-0.6 * e, 3.2))),
             ],
             d[0]: [
                 (0.0, slot[d[0]]),
                 (0.5, slot[d[0]]),
                 (3.2, add(spot, (1.6 * e, -1.6))),
-                (6.2, add(spot, (1.2 * e, -2.8))),
+                (5.0, add(spot, (1.2 * e, -2.8))),
             ],
             d[1]: [
                 (0.0, slot[d[1]]),
                 (0.7, slot[d[1]]),
                 (3.2, add(spot, (3.4 * e, 0.6))),
-                (6.2, add(spot, (2.4 * e, -1.2))),
+                (5.0, add(spot, (2.4 * e, -1.2))),
             ],
         }
         # the rest of the lines step up as the front players go; the third offensive player pops out
         for team, ids in ((lose, d[2:]), (win, w[2:])):
             for k, pid in enumerate(ids):
                 scripts[pid] = [(0.0, slot[pid]), (1.6, slot[pid]), (2.9, pos(team, k))]
-        scripts[w[2]] += [(3.4, pos(win, 0)), (6.2, free)]
-        scripts[w[3]] += [(4.4, pos(win, 1)), (5.8, pos(win, 0))]
-        scripts[w[4]] += [(4.4, pos(win, 2)), (5.8, pos(win, 1))]
+        # possession is called the moment the ground ball is scooped; the next player pops out
+        # right then and gets the pass at once, and the line closes up behind him
+        scripts[w[2]] += [(3.2, pos(win, 0)), (5.0, free)]
+        scripts[w[3]] += [(3.4, pos(win, 1)), (4.4, pos(win, 0))]
+        scripts[w[4]] += [(3.4, pos(win, 2)), (4.4, pos(win, 1))]
         for pid, keys in scripts.items():
             p = self.players[pid]
             p.keys = [(t, x, y) for t, (x, y) in keys]
@@ -379,12 +381,12 @@ class Round:
             (0.5, start[0], start[1], 0),
             (1.9, BALL_N[0], BALL_N[1], 1),
             (3.2, BALL_N[0], BALL_N[1], 0),
-            (5.4, BALL_N[0], BALL_N[1], 0),
-            (6.2,) + self.ball_xy_at(free) + (0,),
+            (4.2, BALL_N[0], BALL_N[1], 0),
+            (5.0,) + self.ball_xy_at(free) + (0,),
         ]
         self.carrier = self.players[w[2]]
-        self.t = 6.2
-        self.shot_ready = max(self.shot_ready, 7.5)
+        self.t = 5.0
+        self.shot_ready = max(self.shot_ready, 6.5)
         names = {"a": "Red", "b": "Blue"}
         self.caption(
             0,
@@ -394,13 +396,17 @@ class Round:
         self.say(0.5, 1.8, "coach", "Ground ball!")
         self.caption(0.6, "The coach rolls a ball about ten yards up the field.")
         self.caption(1.0, "Two players from each team go out and fight for it.")
+        self.say(3.2, 1.6, "coach", "Possession!")
         self.caption(
             3.2,
-            f"{names[win]} wins the ground ball, so {names[win].lower()} is on offense for the "
-            "whole round.",
+            f'{names[win]} wins the ground ball and the coach calls "Possession!", so '
+            f"{names[win].lower()} is on offense for the whole round.",
         )
-        self.caption(3.6, f"The next {names[win].lower()} player pops out for a free pass.")
-        self.caption(6.2, f"Free pass! Now it is {self.odds_text()}.")
+        self.caption(
+            3.4,
+            f"The next {names[win].lower()} player pops out right away and gets a free pass.",
+        )
+        self.caption(5.0, f"Free pass! Now it is {self.odds_text()}.")
 
     def odds_text(self):
         if self.niagara:
@@ -427,9 +433,12 @@ class Round:
                 p.slot = slot
                 goal = slot_pos(team, slot)
                 # wait until the player who just left that spot has cleared it
-                if any(q.playing and dist(q.pos, goal) < 3.6 for q in in_play):
+                if any(
+                    q.playing and dist(q.pos, goal) < (2.6 if self.niagara else 3.6)
+                    for q in in_play
+                ):
                     goal = p.pos
-                nxt[pid] = self.steer(p, goal, V_WALK)
+                nxt[pid] = self.steer(p, goal, 4.2 if self.niagara else V_WALK)
                 # nobody in line closes up on the player ahead of them
                 if slot > 0:
                     ahead = nxt[self.queues[team][slot - 1]]
@@ -441,10 +450,9 @@ class Round:
         if (
             self.nb_phase == "regroup"
             and self.reg_started
-            and t >= self.reg_t + 2.0
             and not self.clearing
             and t >= self.feed_ready
-            and all(dist(q.pos, self.stage[q.id]) < 0.3 for q in in_play)
+            and all(dist(self.players[pid].pos, spot) < 0.3 for pid, spot in self.stage.items())
         ):
             self.feed(t)
         if self.nb_phase == "reset" and t + 1e-9 >= self.reset_t:
@@ -452,11 +460,13 @@ class Round:
         if loose and self.nb_phase == "out" and t + 1e-9 >= self.nb_roll_t:
             self.roll_new_ball(t)
         if self.nb_phase == "regroup" and self.reg_started:
-            for p in in_play:  # everyone walks back to the middle for the next ball
-                goal = (
-                    self.clear_target if self.clearing and p is self.carrier else self.stage[p.id]
-                )
-                nxt[p.id] = self.steer(p, goal, V_RUN * 0.85)
+            for p in in_play:  # play is stopped; only the ones who have a job move
+                if self.clearing and p is self.carrier:
+                    nxt[p.id] = self.steer(p, self.clear_target, V_RUN * 0.85)
+                elif p.id in self.stage:
+                    nxt[p.id] = self.steer(p, self.stage[p.id], V_RUN * 0.85)
+                else:
+                    nxt[p.id] = p.pos
         elif loose and self.nb_phase in ("out", "reset", "regroup", "feeding"):
             for p in in_play:  # play is stopped while the coach gets a new ball
                 nxt[p.id] = p.pos
@@ -885,27 +895,34 @@ class Round:
             self.nb_release = after == "new_ball_release"
 
     def begin_regroup(self, t):
-        """Niagara: after the release (if any) everyone goes to a spot in the middle."""
+        """Niagara: play stops where it is (nobody goes back to the lines before a reset). After
+        the release, if any, the offensive player nearest the coach goes toward the coach for the
+        next ball, and any player who just joined runs in."""
         self.reg_started = True
+        before = {q.id for q in self.playing()}
         if self.release_kind:
             self.do_release(t, self.release_kind)
-        off = sorted(self.playing(self.off_team), key=lambda q: q.pos[0])
-        dfn = sorted((q for q in self.playing() if q.team != self.off_team), key=lambda q: q.pos[0])
+        joined = [q for q in self.playing() if q.id not in before]
+        off = self.playing(self.off_team)
+        to = max(off, key=lambda q: (q.pos[1], -abs(q.pos[0] - CONE_N[0])))
+        self.feed_to = to
         self.stage = {}
-        for i, q in enumerate(off):
-            self.stage[q.id] = (CONE_N[0] + (i - (len(off) - 1) / 2) * 5.5, 37.0)
-        for i, q in enumerate(dfn):
-            self.stage[q.id] = (CONE_N[0] + (i - (len(dfn) - 1) / 2) * 5.0, 32.5)
-        self.caption(t + 0.3, "Everyone gets back to the middle for the next ball.")
+        side = 1 if to.pos[0] >= CONE_N[0] else -1
+        self.stage[to.id] = (CONE_N[0] + side * min(abs(to.pos[0] - CONE_N[0]), 4.0) * 0.6, 45.0)
+        for q in joined:
+            if q is not to:  # a defender who joined comes in toward the middle
+                east = 1 if q.pos[0] >= CONE_N[0] else -1
+                self.stage[q.id] = (CONE_N[0] + east * 4.0, 38.5)
+        self.caption(
+            t + 0.3, "The offensive player nearest the 35 goes toward the coach for the ball."
+        )
 
     def feed(self, t):
-        """A coach gives the offensive player nearest the coach a free ball."""
-        off = self.playing(self.off_team)
-        to = min(off, key=lambda q: abs(q.pos[0] - CONE_N[0]))
+        """The coach gives the player who came to him a free ball."""
+        to = self.feed_to
         start = (COACH_N[0], COACH_N[1] - 0.9)
         end = pocket_of(to.pos)
-        tau = max(0.8, dist(start, end) / 17.0)
-        self.feed_to = to
+        tau = max(0.6, dist(start, end) / 14.0)
         self.nb_land = t + tau
         self.nb_phase = "feeding"
         self.pending += [
@@ -916,10 +933,7 @@ class Round:
         said = "Ball in!" if self.returned else "New ball!"
         self.returned = False
         self.say(t, 1.6, "coach", said)
-        self.caption(
-            t,
-            f'The coach says "{said}" and gives the offensive player nearest the 35 a free ball.',
-        )
+        self.caption(t, f'The coach says "{said}" and gives him a free ball.')
 
     def start_reset(self):
         """Everyone playing walks back to the end of their line."""
@@ -1711,7 +1725,7 @@ NIAGARA_ROUNDS = [
         "layout": "niagara",
         "goalie": True,
         "offense": "a",
-        "seeds": [4, 5, 6, 3, 1],
+        "seeds": [4, 7, 6, 3, 1],
         "hold": 2,
         "shots": [
             ("takeaway", "new_ball_release", "goalie"),

@@ -126,7 +126,7 @@ def test_two_from_each_team_start_then_the_winners_next_player_takes_a_free_pass
         """
         const wins = d.captions.find((c) => c.text.includes('wins the ground ball')).text;
         const w = wins.startsWith('Red') ? 'a' : 'b';
-        const early = onField(d, 3.2), later = onField(d, 6.4);
+        const early = onField(d, 3.2), later = onField(d, 5.4);
         if (early.a !== 2 || early.b !== 2) problems.push([name, 'start', early]);
         if (later[w] !== 3 || later[w === 'a' ? 'b' : 'a'] !== 2) problems.push([name, 'free pass', later]);
         if (!d.captions.slice(0, 8).some((c) => c.text.includes('free pass'))) problems.push([name, 'no caption']);
@@ -149,6 +149,76 @@ def test_the_offense_is_never_more_than_one_up_and_the_defense_only_gets_to_even
         for (const m of text.matchAll(/now (\\d) on (\\d)/g)) {
           const off = Number(m[1]), dfn = Number(m[2]);
           if (!(dfn <= off && off <= dfn + 1)) problems.push([name, 'caption', m[0]]);
+        }
+        """,
+    )
+    assert bad == [], bad[:5]
+
+
+def test_possession_is_called_when_the_ground_ball_is_won_and_the_free_pass_comes_right_away(page):
+    bad = check_every_take(
+        page,
+        """
+        const call = d.speech.find((s) => s.text === 'Possession!');
+        if (!call) { problems.push([name, 'no possession call']); return; }
+        const wins = d.captions.find((c) => c.text.includes('wins the ground ball'));
+        if (Math.abs(wins.t - call.t) > 0.01) problems.push([name, 'call is not at the win']);
+        const w = wins.text.startsWith('Red') ? 'a' : 'b';
+        const players = d.actors.filter((a) => a.kind === 'player' && a.team === w);
+        // the third player of the winning team has left the line by the time of the call + 1 s
+        const out = (t) => players.filter((p) => LAX.trackAt(p.keys, t).y < 49.5).length;
+        if (out(call.t) !== 2) problems.push([name, 'two out at the call', out(call.t)]);
+        if (out(call.t + 1.0) !== 3) problems.push([name, 'third pops out at once', out(call.t + 1.0)]);
+        // and the ball is in his stick no later than two seconds after the call
+        const ball = d.actors.find((a) => a.id === 'ball').keys;
+        const landed = LAX.trackAt(ball, call.t + 2.0);
+        const near = players.some((p) => {
+          const at = LAX.trackAt(p.keys, call.t + 2.0);
+          return Math.hypot(landed.x - at.x, landed.y - at.y) < 1.6 && at.y > 42;
+        });
+        if (!near) problems.push([name, 'free pass not there yet']);
+        """,
+    )
+    assert bad == [], bad[:5]
+
+
+def test_nobody_goes_back_to_the_lines_until_a_reset_is_called(page):
+    bad = check_every_take(
+        page,
+        """
+        const reset = d.speech.find((s) => s.text === 'Reset!');
+        const until = reset ? reset.t : d.duration;
+        for (const p of d.actors.filter((a) => a.kind === 'player')) {
+          let played = false;
+          for (let t = 0; t < until; t += 0.25) {
+            const y = LAX.trackAt(p.keys, t).y;
+            if (y < 49) played = true;
+            if (played && y > 51) problems.push([name, p.id, 'went back to the line', t]);
+          }
+        }
+        """,
+    )
+    assert bad == [], bad[:5]
+
+
+def test_the_player_nearest_the_coach_goes_to_him_for_the_next_ball(page):
+    bad = check_every_take(
+        page,
+        """
+        const fed = d.speech.filter((s) => s.text === 'New ball!' || s.text === 'Ball in!');
+        const ball = d.actors.find((a) => a.id === 'ball').keys;
+        const players = d.actors.filter((a) => a.kind === 'player');
+        for (const item of fed) {
+          const landed = ball.filter((k) => k.t > item.t + 0.3)[0];
+          const near = players
+            .map((p) => ({ p, at: LAX.trackAt(p.keys, landed.t) }))
+            .sort((a, b) => Math.hypot(a.at.x - landed.x, a.at.y - landed.y) - Math.hypot(b.at.x - landed.x, b.at.y - landed.y))[0];
+          // he came toward the coach: the ball is given close to the 35, not up by the goal
+          if (landed.y < 42) problems.push([name, 'the ball went up to him', landed.y]);
+          // and he is the offensive player nearest the 35 yard line
+          const w = d.captions.find((c) => c.text.includes('wins the ground ball')).text.startsWith('Red') ? 'a' : 'b';
+          const off = players.filter((p) => p.team === w).map((p) => LAX.trackAt(p.keys, landed.t).y).filter((y) => y < 50);
+          if (near.at.y < Math.max(...off) - 0.5) problems.push([name, 'not the nearest to the 35']);
         }
         """,
     )
